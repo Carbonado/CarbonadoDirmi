@@ -218,20 +218,26 @@ class RemoteStorageServer implements RemoteStorage {
                            RemoteTransaction txn, Pipe pipe)
         throws FetchException
     {
-        attach(txn);
+
         try {
             OutputStream out = pipe.getOutputStream();
             try {
                 Query query = buildQuery(fv, orderBy);
                 Cursor cursor;
-                if (from == null) {
-                    if (to == null) {
-                        cursor = query.fetch();
+
+                attach(txn);
+                try {
+                    if (from == null) {
+                        if (to == null) {
+                            cursor = query.fetch();
+                        } else {
+                            cursor = query.fetchSlice(0, to);
+                        }
                     } else {
-                        cursor = query.fetchSlice(0, to);
+                        cursor = query.fetchSlice(from, to);
                     }
-                } else {
-                    cursor = query.fetchSlice(from, to);
+                } finally {
+                    detach(txn);
                 }
 
                 try {
