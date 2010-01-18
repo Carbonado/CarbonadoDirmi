@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.amazon.carbonado</groupId>
+  <artifactId>carbonado-dirmi</artifactId>
+  <packaging>jar</packaging>
+  <name>CarbonadoDirmi</name>
+  <version>1.2.2</version>
+  <description>
+    Support for remote access to any Carbonado repository.
+  </description>
+  <url>http://carbonado.sourceforge.net/</url>
+  <inceptionYear>2006</inceptionYear>
+
+  <organization>
+    <name>Amazon Technologies, Inc.</name>
+    <url>http://sourceforge.net/projects/carbonado/</url>
+  </organization>
+
+  <licenses>
+    <license>
+      <name>Apache License Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+    </license>
+  </licenses>
+
+  <scm>
+    <connection>scm:svn:https://svn.sourceforge.net/svnroot/carbonado/trunk/CarbonadoDirmi</connection>
+    <developerConnection>scm:svn:https://svn.sourceforge.net/svnroot/carbonado/trunk/CarbonadoDirmi</developerConnection>
+    <url>http://svn.sourceforge.net/viewvc/carbonado/trunk/CarbonadoDirmi/</url>
+  </scm>
+
+  <issueManagement>
+    <url>http://sourceforge.net/tracker/?group_id=171277</url>
+  </issueManagement>
+
+  <mailingLists>
+    <mailingList>
+      <name>Carbonado Interest list</name>
+      <subscribe>http://sourceforge.net/mail/?group_id=171277</subscribe>
+      <unsubscribe>http://sourceforge.net/mail/?group_id=171277</unsubscribe>
+    </mailingList>
+  </mailingLists>
+
+  <developers>
+    <developer>
+      <name>Brian S O'Neill</name>
+      <id>broneill</id>
+      <email>broneill@users.sourceforge.net</email>
+      <organization>Amazon Technologies, Inc.</organization>
+      <roles>
+        <role>Project Lead</role>
+      </roles>
+    </developer>
+
+    <developer>
+      <name>Olga Kuznetsova</name>
+      <organization>Amazon Technologies, Inc.</organization>
+    </developer>
+  </developers>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.amazon.carbonado</groupId>
+      <artifactId>carbonado</artifactId>
+      <version>1.2.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.cojen</groupId>
+      <artifactId>dirmi</artifactId>
+      <version>1.0</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>1.5</source>
+          <target>1.5</target>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <reporting>
+    <plugins>
+      <!--
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+          <configuration>
+            <aggregate>true</aggregate>
+            <links>
+              <link>http://java.sun.com/j2se/1.5.0/docs/api</link>
+            </links>
+          </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jxr-plugin</artifactId>
+        <configuration>
+          <aggregate>true</aggregate>
+        </configuration>
+      </plugin>
+      -->
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-project-info-reports-plugin</artifactId>
+        <reportSets>
+          <reportSet>
+            <reports>
+              <report>project-team</report>
+	      <report>mailing-list</report>
+              <report>issue-tracking</report>
+              <report>scm</report>
+              <report>license</report>
+	    </reports>
+          </reportSet>
+        </reportSets>
+      </plugin>
+    </plugins>
+  </reporting>
+</project>
