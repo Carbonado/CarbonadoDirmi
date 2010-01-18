@@ -241,21 +241,6 @@ public class RemoteTest {
     }
 
     @Test
-    public void sequenceGeneratorTest() { 
-
-    }
-
-    @Test
-    public void exceptionTest() {
-
-    }
-
-    @Test
-    public void threadTest() {
-
-    }
-
-    @Test
     public void closingTest() throws Exception {
         Repository repo = com.amazon.carbonado.repo.map.MapRepositoryBuilder.newRepository();
         Session[] pair = new Environment().newSessionPair();
