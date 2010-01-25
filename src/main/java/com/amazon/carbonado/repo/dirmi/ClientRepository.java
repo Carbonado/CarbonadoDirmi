@@ -46,6 +46,16 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction> {
         return new ClientRepository(remote.getName(), remote);
     }
 
+    /**
+     * Returns client access to a remote repository server.
+     *
+     * @param name Name of Client Repository.
+     */
+    public static Repository from(String name,
+				  RemoteRepository remote) throws RepositoryException {
+        return new ClientRepository(name, remote);
+    }
+
     private final RemoteRepository mRepository;
     private final TransactionManager<RemoteTransaction> mTxnMgr;
 

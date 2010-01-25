@@ -55,6 +55,8 @@
 
     <developer>
       <name>Olga Kuznetsova</name>
+      <id>okuznetsova</id>
+      <email>okuznetsova@users.sourceforge.net</email>
       <organization>Amazon Technologies, Inc.</organization>
     </developer>
   </developers>
