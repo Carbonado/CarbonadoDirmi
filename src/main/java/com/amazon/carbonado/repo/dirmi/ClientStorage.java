@@ -58,7 +58,7 @@ import com.amazon.carbonado.util.QuickConstructorGenerator;
 class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S> {
     private final Class<S> mType;
     private final ClientRepository mRepository;
-    private final RemoteStorage mStorage;
+    private volatile RemoteStorage mStorage;
     private final TriggerManager<S> mTriggerManager;
 
     private final InstanceFactory mInstanceFactory;
@@ -163,14 +163,18 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     public boolean doTryLoad(S storable) throws FetchException {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
+	    if (txn instanceof FailedTransaction) {
+		throw new FetchException("Transaction invalid due to a reconnect");
+	    }
+
             Pipe pipe = mStorage.tryLoad(txn, null);
             try {
-                // FIXME: just write the primary or alternate keys somehow
+		// FIXME: just write the primary or alternate keys somehow
                 storable.writeTo(pipe.getOutputStream());
-                pipe.flush();
-                RepositoryException ex = (RepositoryException) pipe.readThrowable();
-                if (ex != null) {
-                    throw ex.toFetchException();
+		pipe.flush();
+		RepositoryException ex = (RepositoryException) pipe.readThrowable();
+		if (ex != null) {
+		    throw ex.toFetchException();
                 }
                 if (pipe.readBoolean()) {
                     storable.readFrom(pipe.getInputStream());
@@ -192,6 +196,10 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     public boolean doTryInsert(S storable) throws PersistException {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
+	    if (txn instanceof FailedTransaction) {
+		throw new PersistException("Transaction invalid due to a reconnect");
+	    }
+
             Pipe pipe = mStorage.tryInsert(txn, null);
             try {
                 storable.writeTo(pipe.getOutputStream());
@@ -225,6 +233,10 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     public boolean doTryUpdate(S storable) throws PersistException {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
+	    if (txn instanceof FailedTransaction) {
+		throw new PersistException("Transaction invalid due to a reconnect");
+	    }
+
             Pipe pipe = mStorage.tryUpdate(txn, null);
             try {
                 storable.writeTo(pipe.getOutputStream());
@@ -258,6 +270,10 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     public boolean doTryDelete(S storable) throws PersistException {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
+	    if (txn instanceof FailedTransaction) {
+		throw new PersistException("Transaction invalid due to a reconnect");
+	    }
+
             Pipe pipe = mStorage.tryDelete(txn, null);
             try {
                 // FIXME: just write the primary or alternate keys somehow
@@ -328,6 +344,10 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     S queryLoadOne(FilterValues fv) throws FetchException {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
+	    if (txn instanceof FailedTransaction) {
+		throw new FetchException("Transaction invalid due to a reconnect");
+	    }
+
             Pipe pipe = mStorage.queryLoadOne(fv, txn, null);
             try {
                 RepositoryException ex = (RepositoryException) pipe.readThrowable();
@@ -352,6 +372,10 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     S queryTryLoadOne(FilterValues fv) throws FetchException {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
+	    if (txn instanceof FailedTransaction) {
+		throw new FetchException("Transaction invalid due to a reconnect");
+	    }
+
             Pipe pipe = mStorage.queryTryLoadOne(fv, txn, null);
             try {
                 RepositoryException ex = (RepositoryException) pipe.readThrowable();
@@ -426,5 +450,9 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
 
     public static interface InstanceFactory {
         Storable instantiate(DelegateSupport support);
+    }
+
+    void reconnect(RemoteStorage storage) {
+	mStorage = storage;
     }
 }

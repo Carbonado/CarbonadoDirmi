@@ -18,6 +18,8 @@
 
 package com.amazon.carbonado.repo.dirmi;
 
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.cojen.dirmi.util.Wrapper;
 
 import com.amazon.carbonado.Repository;
@@ -35,34 +37,73 @@ import com.amazon.carbonado.txn.TransactionScope;
 /**
  * Creates a client repository from a {@link RemoteRepository}, as served by
  * {@link RemoteRepositoryServer}.
+ * 
+ * If the connection is lost, the repository can be reconnected using 'reconnect'
+ * and the Storage and SequenceValueProducer references will be retained.
+ * All transactions will be invalid following a disconnect
  *
  * @author Brian S O'Neill
+ * @author Olga Kuznetsova
  */
 public class ClientRepository extends AbstractRepository<RemoteTransaction> {
     /**
      * Returns client access to a remote repository server.
+     *
+     * @return ClientRepository instance wrapping the remote repository
      */
-    public static Repository from(RemoteRepository remote) throws RepositoryException {
+    public static ClientRepository from(RemoteRepository remote) throws RepositoryException {
         return new ClientRepository(remote.getName(), remote);
     }
-
+    
     /**
      * Returns client access to a remote repository server.
      *
-     * @param name Name of Client Repository.
+     * @return ClientRepository instance wrapping the remote repository
      */
-    public static Repository from(String name,
-				  RemoteRepository remote) throws RepositoryException {
-        return new ClientRepository(name, remote);
+    public static ClientRepository from(String name, RemoteRepository remote) throws RepositoryException {
+	return new ClientRepository(name, remote);
     }
 
-    private final RemoteRepository mRepository;
+    /**
+     * Reconnects the repository in case of a disconnect. 
+     * Storage and SequenceValueProducer references will be retained. 
+     * All transactions that were in process will be broken invalid after the disconnect.
+     */
+    public void reconnect(RemoteRepository remote) throws RepositoryException {
+	for (Storage s : allStorage()) {
+	    if (s != null) {
+		ClientStorage curr = (ClientStorage) storageFor(s.getStorableType());
+		curr.reconnect(remote.storageFor(s.getStorableType()));
+	    }
+	}
+	for (String p : mSequenceNames.keySet()) {
+	    if (p != null) {
+		RemoteSequenceValueProducer producer = remote.getSequenceValueProducer(p);
+		try {
+		    ClientSequenceValueProducer currProducer = (ClientSequenceValueProducer) getSequenceValueProducer(p);
+		    currProducer.reconnect(producer);
+		} catch (RepositoryException e) {
+		    mSequenceNames.remove(p);
+		    throw e;
+		}
+	    }
+	}
+	mRepository = remote;
+    }
+
+    private volatile RemoteRepository mRepository;
     private final TransactionManager<RemoteTransaction> mTxnMgr;
+    private final ConcurrentHashMap<String, String> mSequenceNames;
+
+    RemoteRepository getRemoteRepository() {
+	return mRepository;
+    }
 
     private ClientRepository(String name, RemoteRepository remote) {
         super(name);
         mRepository = remote;
-        mTxnMgr = new ClientTransactionManager(remote);
+	mSequenceNames = new ConcurrentHashMap<String, String>();
+        mTxnMgr = new ClientTransactionManager(this);
     }
 
     @Override
@@ -74,7 +115,7 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction> {
     protected <S extends Storable> Storage<S> createStorage(Class<S> type)
         throws RepositoryException
     {
-        return new ClientStorage<S>(type, this, mRepository.storageFor(type));
+	return new ClientStorage<S>(type, this, mRepository.storageFor(type));
     }
 
     @Override
@@ -82,9 +123,9 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction> {
         throws RepositoryException
     {
         RemoteSequenceValueProducer producer = mRepository.getSequenceValueProducer(name);
-        return Wrapper
-            .from(SequenceValueProducer.class, RemoteSequenceValueProducer.class)
-            .wrap(producer);
+	mSequenceNames.put(name, "");
+	SequenceValueProducer wrapper = new ClientSequenceValueProducer(producer);
+	return wrapper;
     }
 
     @Override

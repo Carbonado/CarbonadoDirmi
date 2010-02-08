@@ -31,9 +31,9 @@ import com.amazon.carbonado.txn.TransactionManager;
  * @author Brian S O'Neill
  */
 class ClientTransactionManager extends TransactionManager<RemoteTransaction> {
-    private final RemoteRepository mRepository;
+    private final ClientRepository mRepository;
 
-    ClientTransactionManager(RemoteRepository repo) {
+    ClientTransactionManager(ClientRepository repo) {
         if (repo == null) {
             throw new IllegalArgumentException();
         }
@@ -58,9 +58,9 @@ class ClientTransactionManager extends TransactionManager<RemoteTransaction> {
 
     protected RemoteTransaction createTxn(RemoteTransaction parent, IsolationLevel level) {
         if (parent == null) {
-            return mRepository.enterTopTransaction(level);
+            return mRepository.getRemoteRepository().enterTopTransaction(level);
         } else {
-            return mRepository.enterTransaction(parent, level);
+            return mRepository.getRemoteRepository().enterTransaction(parent, level);
         }
     }
 

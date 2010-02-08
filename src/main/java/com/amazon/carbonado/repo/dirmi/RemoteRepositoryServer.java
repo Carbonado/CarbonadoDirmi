@@ -76,7 +76,9 @@ public class RemoteRepositoryServer implements RemoteRepository {
     }
 
     public RemoteTransaction enterTransaction(RemoteTransaction parent, IsolationLevel level) {
-        attach(parent);
+	if (!attach(parent)) {
+	    return new FailedTransaction();
+	}
         try {
             Transaction txn = mRepository.enterTransaction(level);
             txn.detach();
@@ -105,10 +107,18 @@ public class RemoteRepositoryServer implements RemoteRepository {
             .wrap(producer);
     }
 
-    private void attach(RemoteTransaction parent) {
+    private boolean attach(RemoteTransaction parent) {
         if (parent != null) {
-            ((RemoteTransactionServer) parent).attach();
+	    try {
+		((RemoteTransactionServer) parent).attach();
+	    } catch (ClassCastException e) {
+		// This means that the parent transaction has been disconnected
+		// and this transaction has nothing to attach to. The client
+		// needs to be notified that it has an invalid transaction.
+		return false;
+	    }
         }
+	return true;
     }
 
     private void detach(RemoteTransaction parent) {
