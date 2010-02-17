@@ -22,6 +22,7 @@ import java.util.Random;
 
 import org.joda.time.DateTime;
 
+import com.amazon.carbonado.Independent;
 import com.amazon.carbonado.Nullable;
 import com.amazon.carbonado.Storable;
 import com.amazon.carbonado.PrimaryKey;
@@ -48,6 +49,7 @@ public abstract class StorableTestVersioned implements Storable {
     public abstract long getLongProp();
     public abstract void setLongProp(long aLong);
 
+    @Independent
     public abstract double getDoubleProp();
     public abstract void setDoubleProp(double aDouble);
 

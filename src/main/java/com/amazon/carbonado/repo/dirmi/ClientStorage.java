@@ -21,7 +21,12 @@ package com.amazon.carbonado.repo.dirmi;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import org.cojen.dirmi.Pipe;
 
@@ -37,6 +42,9 @@ import com.amazon.carbonado.Trigger;
 
 import com.amazon.carbonado.filter.Filter;
 import com.amazon.carbonado.filter.FilterValues;
+
+import com.amazon.carbonado.info.StorableIntrospector;
+import com.amazon.carbonado.info.StorableProperty;
 
 import com.amazon.carbonado.sequence.SequenceValueProducer;
 
@@ -58,19 +66,20 @@ import com.amazon.carbonado.util.QuickConstructorGenerator;
 class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S> {
     private final Class<S> mType;
     private final ClientRepository mRepository;
-    private volatile RemoteStorage mStorage;
     private final TriggerManager<S> mTriggerManager;
-
     private final InstanceFactory mInstanceFactory;
-
     private final ClientQueryFactory<S> mQueryFactory;
+
+    // Cache of independent property support.
+    private final Set<String> mSupportedProperties;
+
+    private volatile RemoteStorage mStorage;
 
     ClientStorage(Class<S> type, ClientRepository repo, RemoteStorage storage)
         throws SupportException, RepositoryException
     {
         mType = type;
         mRepository = repo;
-        mStorage = storage;
         mTriggerManager = new TriggerManager<S>(type, null);
 
         EnumSet<MasterFeature> features = EnumSet.noneOf(MasterFeature.class);
@@ -82,6 +91,11 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             .getInstance(delegateStorableClass, InstanceFactory.class);
 
         mQueryFactory = new ClientQueryFactory<S>(type, this);
+
+        mSupportedProperties = new HashSet<String>(1);
+
+        // Set mStorage and determine supported independent properties.
+        reconnect(storage);
     }
 
     public Class<S> getStorableType() {
@@ -129,7 +143,9 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     }
 
     public boolean isPropertySupported(String propertyName) {
-        return prepare().isPropertySupported(propertyName);
+        synchronized (mSupportedProperties) {
+            return mSupportedProperties.contains(propertyName);
+        }
     }
 
     public Trigger<? super S> getInsertTrigger() {
@@ -163,18 +179,18 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     public boolean doTryLoad(S storable) throws FetchException {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
-	    if (txn instanceof FailedTransaction) {
-		throw new FetchException("Transaction invalid due to a reconnect");
-	    }
+            if (txn instanceof FailedTransaction) {
+                throw new FetchException("Transaction invalid due to a reconnect");
+            }
 
             Pipe pipe = mStorage.tryLoad(txn, null);
             try {
-		// FIXME: just write the primary or alternate keys somehow
+                // FIXME: just write the primary or alternate keys somehow
                 storable.writeTo(pipe.getOutputStream());
-		pipe.flush();
-		RepositoryException ex = (RepositoryException) pipe.readThrowable();
-		if (ex != null) {
-		    throw ex.toFetchException();
+                pipe.flush();
+                RepositoryException ex = (RepositoryException) pipe.readThrowable();
+                if (ex != null) {
+                    throw ex.toFetchException();
                 }
                 if (pipe.readBoolean()) {
                     storable.readFrom(pipe.getInputStream());
@@ -196,9 +212,9 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     public boolean doTryInsert(S storable) throws PersistException {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
-	    if (txn instanceof FailedTransaction) {
-		throw new PersistException("Transaction invalid due to a reconnect");
-	    }
+            if (txn instanceof FailedTransaction) {
+                throw new PersistException("Transaction invalid due to a reconnect");
+            }
 
             Pipe pipe = mStorage.tryInsert(txn, null);
             try {
@@ -233,9 +249,9 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     public boolean doTryUpdate(S storable) throws PersistException {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
-	    if (txn instanceof FailedTransaction) {
-		throw new PersistException("Transaction invalid due to a reconnect");
-	    }
+            if (txn instanceof FailedTransaction) {
+                throw new PersistException("Transaction invalid due to a reconnect");
+            }
 
             Pipe pipe = mStorage.tryUpdate(txn, null);
             try {
@@ -270,9 +286,9 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     public boolean doTryDelete(S storable) throws PersistException {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
-	    if (txn instanceof FailedTransaction) {
-		throw new PersistException("Transaction invalid due to a reconnect");
-	    }
+            if (txn instanceof FailedTransaction) {
+                throw new PersistException("Transaction invalid due to a reconnect");
+            }
 
             Pipe pipe = mStorage.tryDelete(txn, null);
             try {
@@ -344,9 +360,9 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     S queryLoadOne(FilterValues fv) throws FetchException {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
-	    if (txn instanceof FailedTransaction) {
-		throw new FetchException("Transaction invalid due to a reconnect");
-	    }
+            if (txn instanceof FailedTransaction) {
+                throw new FetchException("Transaction invalid due to a reconnect");
+            }
 
             Pipe pipe = mStorage.queryLoadOne(fv, txn, null);
             try {
@@ -372,9 +388,9 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     S queryTryLoadOne(FilterValues fv) throws FetchException {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
-	    if (txn instanceof FailedTransaction) {
-		throw new FetchException("Transaction invalid due to a reconnect");
-	    }
+            if (txn instanceof FailedTransaction) {
+                throw new FetchException("Transaction invalid due to a reconnect");
+            }
 
             Pipe pipe = mStorage.queryTryLoadOne(fv, txn, null);
             try {
@@ -452,7 +468,33 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
         Storable instantiate(DelegateSupport support);
     }
 
-    void reconnect(RemoteStorage storage) {
-	mStorage = storage;
+    void reconnect(RemoteStorage storage) throws FetchException {
+        List<String> indieList = null;
+        for (StorableProperty<S> property :
+                 StorableIntrospector.examine(mType).getAllProperties().values())
+        {
+            if (property.isIndependent()) {
+                if (indieList == null) {
+                    indieList = new ArrayList<String>();
+                }
+                indieList.add(property.getName());
+            }
+        }
+
+        Set<String> supported;
+        if (indieList == null) {
+            supported = null;
+        } else {
+            supported = storage.getPropertySupport(indieList.toArray(new String[0]));
+        }
+
+        synchronized (mSupportedProperties) {
+            mStorage = storage;
+            if (supported == null) {
+                mSupportedProperties.clear();
+            } else {
+                mSupportedProperties.retainAll(supported);
+            }
+        }
     }
 }

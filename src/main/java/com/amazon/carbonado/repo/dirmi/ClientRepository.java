@@ -60,8 +60,10 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction> {
      *
      * @return ClientRepository instance wrapping the remote repository
      */
-    public static ClientRepository from(String name, RemoteRepository remote) throws RepositoryException {
-	return new ClientRepository(name, remote);
+    public static ClientRepository from(String name, RemoteRepository remote)
+        throws RepositoryException
+    {
+        return new ClientRepository(name, remote);
     }
 
     /**
@@ -70,25 +72,26 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction> {
      * All transactions that were in process will be broken invalid after the disconnect.
      */
     public void reconnect(RemoteRepository remote) throws RepositoryException {
-	for (Storage s : allStorage()) {
-	    if (s != null) {
-		ClientStorage curr = (ClientStorage) storageFor(s.getStorableType());
-		curr.reconnect(remote.storageFor(s.getStorableType()));
-	    }
-	}
-	for (String p : mSequenceNames.keySet()) {
-	    if (p != null) {
-		RemoteSequenceValueProducer producer = remote.getSequenceValueProducer(p);
-		try {
-		    ClientSequenceValueProducer currProducer = (ClientSequenceValueProducer) getSequenceValueProducer(p);
-		    currProducer.reconnect(producer);
-		} catch (RepositoryException e) {
-		    mSequenceNames.remove(p);
-		    throw e;
-		}
-	    }
-	}
-	mRepository = remote;
+        for (Storage s : allStorage()) {
+            if (s != null) {
+                ClientStorage curr = (ClientStorage) storageFor(s.getStorableType());
+                curr.reconnect(remote.storageFor(s.getStorableType()));
+            }
+        }
+        for (String p : mSequenceNames.keySet()) {
+            if (p != null) {
+                RemoteSequenceValueProducer producer = remote.getSequenceValueProducer(p);
+                try {
+                    ClientSequenceValueProducer currProducer =
+                        (ClientSequenceValueProducer) getSequenceValueProducer(p);
+                    currProducer.reconnect(producer);
+                } catch (RepositoryException e) {
+                    mSequenceNames.remove(p);
+                    throw e;
+                }
+            }
+        }
+        mRepository = remote;
     }
 
     private volatile RemoteRepository mRepository;
@@ -96,13 +99,13 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction> {
     private final ConcurrentHashMap<String, String> mSequenceNames;
 
     RemoteRepository getRemoteRepository() {
-	return mRepository;
+        return mRepository;
     }
 
     private ClientRepository(String name, RemoteRepository remote) {
         super(name);
         mRepository = remote;
-	mSequenceNames = new ConcurrentHashMap<String, String>();
+        mSequenceNames = new ConcurrentHashMap<String, String>();
         mTxnMgr = new ClientTransactionManager(this);
     }
 
@@ -115,7 +118,7 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction> {
     protected <S extends Storable> Storage<S> createStorage(Class<S> type)
         throws RepositoryException
     {
-	return new ClientStorage<S>(type, this, mRepository.storageFor(type));
+        return new ClientStorage<S>(type, this, mRepository.storageFor(type));
     }
 
     @Override
@@ -123,9 +126,9 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction> {
         throws RepositoryException
     {
         RemoteSequenceValueProducer producer = mRepository.getSequenceValueProducer(name);
-	mSequenceNames.put(name, "");
-	SequenceValueProducer wrapper = new ClientSequenceValueProducer(producer);
-	return wrapper;
+        mSequenceNames.put(name, "");
+        SequenceValueProducer wrapper = new ClientSequenceValueProducer(producer);
+        return wrapper;
     }
 
     @Override

@@ -20,6 +20,8 @@ package com.amazon.carbonado.repo.dirmi;
 
 import java.rmi.Remote;
 
+import java.util.Set;
+
 import org.cojen.dirmi.Asynchronous;
 import org.cojen.dirmi.Pipe;
 import org.cojen.dirmi.RemoteFailure;
@@ -189,4 +191,7 @@ public interface RemoteStorage extends Remote {
 
     @RemoteFailure(exception=PersistException.class)
     void truncate(RemoteTransaction txn) throws PersistException;
+
+    @RemoteFailure(exception=FetchException.class)
+    Set<String> getPropertySupport(String... propertyNames) throws FetchException;
 }

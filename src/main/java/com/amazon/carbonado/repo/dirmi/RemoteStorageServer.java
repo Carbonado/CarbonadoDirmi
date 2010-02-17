@@ -23,6 +23,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.cojen.dirmi.Pipe;
 
 import com.amazon.carbonado.CorruptEncodingException;
@@ -62,44 +65,44 @@ class RemoteStorageServer implements RemoteStorage {
     public Pipe tryLoad(RemoteTransaction txn, Pipe pipe) {
         try {
             Storable s = mStorage.prepare();
-	    try {
-		s.readFrom(pipe.getInputStream());
-	    } catch (SupportException e) {
-		pipe.writeThrowable(e);
-		return null;
-	    }
+            try {
+                s.readFrom(pipe.getInputStream());
+            } catch (SupportException e) {
+                pipe.writeThrowable(e);
+                return null;
+            }
 
-	    if (attachFetch(txn, pipe)) {
-		boolean loaded;
-		try {
-		    loaded = s.tryLoad();
-		} catch (RepositoryException e) {
-		    pipe.writeThrowable(e);
-		    return null;
-		}
-		
-		pipe.writeThrowable(null);
-		
-		if (loaded) {
-		    pipe.writeBoolean(true);
-		    s.writeTo(pipe.getOutputStream());
-		} else {
-		    pipe.writeBoolean(false);
-		}
-	    } else {
-		txn = null;
-	    }
+            if (attachFetch(txn, pipe)) {
+                boolean loaded;
+                try {
+                    loaded = s.tryLoad();
+                } catch (RepositoryException e) {
+                    pipe.writeThrowable(e);
+                    return null;
+                }
+                
+                pipe.writeThrowable(null);
+                
+                if (loaded) {
+                    pipe.writeBoolean(true);
+                    s.writeTo(pipe.getOutputStream());
+                } else {
+                    pipe.writeBoolean(false);
+                }
+            } else {
+                txn = null;
+            }
         } catch (IOException e) {
             // Ignore.
         } catch (SupportException e) {
-	    // Ignore. 
+            // Ignore. 
         } finally {
-	    detach(txn);
-	    try {
-		pipe.close();
-	    } catch (IOException e) {
-		// Ignore.
-	    }
+            detach(txn);
+            try {
+                pipe.close();
+            } catch (IOException e) {
+                // Ignore.
+            }
         }
 
         return null;
@@ -108,45 +111,45 @@ class RemoteStorageServer implements RemoteStorage {
     public Pipe tryInsert(RemoteTransaction txn, Pipe pipe) {
         try {
             Storable s = mStorage.prepare();
-	    try {
-		s.readFrom(pipe.getInputStream());
-	    } catch (SupportException e) {
-		pipe.writeThrowable(e);
-		return null;
-	    }
+            try {
+                s.readFrom(pipe.getInputStream());
+            } catch (SupportException e) {
+                pipe.writeThrowable(e);
+                return null;
+            }
 
-	    if (attachPersist(txn, pipe)) {
-		boolean inserted;
-		try {
-		    inserted = s.tryInsert();
-		} catch (RepositoryException e) {
-		    pipe.writeThrowable(e);
-		    return null;
-		}
-		
-		pipe.writeThrowable(null);
-		
-		if (inserted) {
-		    // FIXME: As an optimization, pass nothing back if unchanged
-		    pipe.write(STORABLE_CHANGED);
-		    s.writeTo(pipe.getOutputStream());
-		} else {
-		    pipe.write(STORABLE_CHANGE_FAILED);
-		}
-	    } else {
-		txn = null;
-	    }
+            if (attachPersist(txn, pipe)) {
+                boolean inserted;
+                try {
+                    inserted = s.tryInsert();
+                } catch (RepositoryException e) {
+                    pipe.writeThrowable(e);
+                    return null;
+                }
+                
+                pipe.writeThrowable(null);
+                
+                if (inserted) {
+                    // FIXME: As an optimization, pass nothing back if unchanged
+                    pipe.write(STORABLE_CHANGED);
+                    s.writeTo(pipe.getOutputStream());
+                } else {
+                    pipe.write(STORABLE_CHANGE_FAILED);
+                }
+            } else {
+                txn = null;
+            }
         } catch (IOException e) {
             // Ignore.
         } catch (SupportException e) {
             // Ignore.
         } finally {
-	    detach(txn);
-	    try {
-		pipe.close();
-	    } catch (IOException e) {
-		// Ignore.
-	    }
+            detach(txn);
+            try {
+                pipe.close();
+            } catch (IOException e) {
+                // Ignore.
+            }
         }
 
         return null;
@@ -155,45 +158,45 @@ class RemoteStorageServer implements RemoteStorage {
     public Pipe tryUpdate(RemoteTransaction txn, Pipe pipe) {
         try {
             Storable s = mStorage.prepare();
-	    try {
-		s.readFrom(pipe.getInputStream());
-	    } catch (SupportException e) {
-		pipe.writeThrowable(e);
-		return null;
-	    }
+            try {
+                s.readFrom(pipe.getInputStream());
+            } catch (SupportException e) {
+                pipe.writeThrowable(e);
+                return null;
+            }
 
-	    if (attachPersist(txn, pipe)) {
-		boolean updated;
-		try {
-		    updated = s.tryUpdate();
-		} catch (RepositoryException e) {
-		    pipe.writeThrowable(e);
-		    return null;
-		}
-		
-		pipe.writeThrowable(null);
-		
-		if (updated) {
-		    // FIXME: As an optimization, pass nothing back if unchanged
-		    pipe.write(STORABLE_CHANGED);
-		    s.writeTo(pipe.getOutputStream());
-		} else {
-		    pipe.write(STORABLE_CHANGE_FAILED);
-		}
-	    } else {
-		txn = null;
-	    }
-	} catch (IOException e) {
-		// Ignore.
+            if (attachPersist(txn, pipe)) {
+                boolean updated;
+                try {
+                    updated = s.tryUpdate();
+                } catch (RepositoryException e) {
+                    pipe.writeThrowable(e);
+                    return null;
+                }
+                
+                pipe.writeThrowable(null);
+                
+                if (updated) {
+                    // FIXME: As an optimization, pass nothing back if unchanged
+                    pipe.write(STORABLE_CHANGED);
+                    s.writeTo(pipe.getOutputStream());
+                } else {
+                    pipe.write(STORABLE_CHANGE_FAILED);
+                }
+            } else {
+                txn = null;
+            }
+        } catch (IOException e) {
+                // Ignore.
         } catch (SupportException e) {
             // Ignore.
         } finally {
-	    detach(txn);
-	    try {
-		pipe.close();
-	    } catch (IOException e) {
-		// Ignore.
-	    }
+            detach(txn);
+            try {
+                pipe.close();
+            } catch (IOException e) {
+                // Ignore.
+            }
         }
 
         return null;
@@ -202,37 +205,37 @@ class RemoteStorageServer implements RemoteStorage {
     public Pipe tryDelete(RemoteTransaction txn, Pipe pipe) {
         try {
             Storable s = mStorage.prepare();
-	    try {
-		s.readFrom(pipe.getInputStream());
-	    } catch (SupportException e) {
-		pipe.writeThrowable(e);
-		return null;
-	    }
+            try {
+                s.readFrom(pipe.getInputStream());
+            } catch (SupportException e) {
+                pipe.writeThrowable(e);
+                return null;
+            }
 
-	    if (attachPersist(txn, pipe)) {
-		boolean deleted;
-		try {
-		    deleted = s.tryDelete();
-		} catch (RepositoryException e) {
-		    pipe.writeThrowable(e);
-		    return null;
-		}
-		
-		pipe.writeThrowable(null);
-		pipe.writeBoolean(deleted);
-	    } else {
-		txn = null;
-	    } 
+            if (attachPersist(txn, pipe)) {
+                boolean deleted;
+                try {
+                    deleted = s.tryDelete();
+                } catch (RepositoryException e) {
+                    pipe.writeThrowable(e);
+                    return null;
+                }
+                
+                pipe.writeThrowable(null);
+                pipe.writeBoolean(deleted);
+            } else {
+                txn = null;
+            } 
         } catch (IOException e) {
             // Ignore.
         } finally {
-	    detach(txn);
-	    try {
-		pipe.close();
-	    } catch (IOException e) {
+            detach(txn);
+            try {
+                pipe.close();
+            } catch (IOException e) {
                 // Ignore.
-	    }
-	}
+            }
+        }
 
         return null;
     }
@@ -257,20 +260,20 @@ class RemoteStorageServer implements RemoteStorage {
                 Query query = buildQuery(fv, orderBy);
                 Cursor cursor;
 
-		attach(txn);
-		try {
-		    if (from == null) {
-			if (to == null) {
-			    cursor = query.fetch();
-			} else {
-			    cursor = query.fetchSlice(0, to);
-			}
-		    } else {
-			cursor = query.fetchSlice(from, to);
-		    }
-		} finally {
-		    detach(txn);
-		}
+                attach(txn);
+                try {
+                    if (from == null) {
+                        if (to == null) {
+                            cursor = query.fetch();
+                        } else {
+                            cursor = query.fetchSlice(0, to);
+                        }
+                    } else {
+                        cursor = query.fetchSlice(from, to);
+                    }
+                } finally {
+                    detach(txn);
+                }
 
                 try {
                     while (cursor.hasNext()) {
@@ -284,14 +287,14 @@ class RemoteStorageServer implements RemoteStorage {
                 out.write(CURSOR_END);
             } catch (IOException e) {
                 throw e;
-	    } catch (Exception e) {
-		out.write(CURSOR_EXCEPTION);
+            } catch (Exception e) {
+                out.write(CURSOR_EXCEPTION);
                 pipe.writeObject(e);
             }
         } catch (IOException e) {
             throw new FetchException(e);
         } finally {
-	    detach(txn);
+            detach(txn);
             try {
                 pipe.close();
             } catch (IOException e) {
@@ -303,31 +306,31 @@ class RemoteStorageServer implements RemoteStorage {
 
     public Pipe queryLoadOne(FilterValues fv, RemoteTransaction txn, Pipe pipe) {
         try {
-	    if (attachFetch(txn,pipe)) {
-		Storable s;
-		try {
-		    s = buildQuery(fv, null).loadOne();
-		} catch (RepositoryException e) {
-		    pipe.writeThrowable(e);
-		    return null;
-		}
-		
-		pipe.writeThrowable(null);
-		s.writeTo(pipe.getOutputStream());
-	    } else {
-		txn = null;
-	    }
+            if (attachFetch(txn,pipe)) {
+                Storable s;
+                try {
+                    s = buildQuery(fv, null).loadOne();
+                } catch (RepositoryException e) {
+                    pipe.writeThrowable(e);
+                    return null;
+                }
+                
+                pipe.writeThrowable(null);
+                s.writeTo(pipe.getOutputStream());
+            } else {
+                txn = null;
+            }
         } catch (IOException e) {
             // Ignore.
         } catch (SupportException e) {
             // Ignore.
         } finally {
-	    detach(txn);
-	    try {
-		pipe.close();
-	    } catch (IOException e) {
-		// Ignore.
-	    }
+            detach(txn);
+            try {
+                pipe.close();
+            } catch (IOException e) {
+                // Ignore.
+            }
         }
 
         return null;
@@ -335,37 +338,37 @@ class RemoteStorageServer implements RemoteStorage {
 
     public Pipe queryTryLoadOne(FilterValues fv, RemoteTransaction txn, Pipe pipe) {
         try {
-	    if (attachFetch(txn, pipe)) {
-		Storable s;
-		try {
-		    s = buildQuery(fv, null).tryLoadOne();
-		} catch (RepositoryException e) {
-		    pipe.writeThrowable(e);
-		    return null;
-		}
-		
-		pipe.writeThrowable(null);
-		
-		if (s != null) {
-		    pipe.writeBoolean(true);
-		    s.writeTo(pipe.getOutputStream());
-		} else {
-		    pipe.writeBoolean(false);
-		}
-	    } else {
-		txn = null;
-	    }
+            if (attachFetch(txn, pipe)) {
+                Storable s;
+                try {
+                    s = buildQuery(fv, null).tryLoadOne();
+                } catch (RepositoryException e) {
+                    pipe.writeThrowable(e);
+                    return null;
+                }
+                
+                pipe.writeThrowable(null);
+                
+                if (s != null) {
+                    pipe.writeBoolean(true);
+                    s.writeTo(pipe.getOutputStream());
+                } else {
+                    pipe.writeBoolean(false);
+                }
+            } else {
+                txn = null;
+            }
         } catch (IOException e) {
             // Ignore.
         } catch (SupportException e) {
             // Ignore.
         } finally {
-	    detach(txn);
-	    try {
-		pipe.close();
-	    } catch (IOException e) {
-		// Ignore.
-	    }
+            detach(txn);
+            try {
+                pipe.close();
+            } catch (IOException e) {
+                // Ignore.
+            }
         }
 
         return null;
@@ -445,6 +448,20 @@ class RemoteStorageServer implements RemoteStorage {
         }
     }
 
+    public Set<String> getPropertySupport(String... propertyNames) {
+        Storable s = mStorage.prepare();
+        Set<String> supported = null;
+        for (int i=0; i<propertyNames.length; i++) {
+            if (s.isPropertySupported(propertyNames[i])) {
+                if (supported == null) {
+                    supported = new HashSet<String>();
+                }
+                supported.add(propertyNames[i]);
+            }
+        }
+        return supported;
+    }
+
     private void attach(RemoteTransaction txn) {
         if (txn != null) {
             ((RemoteTransactionServer) txn).attach();
@@ -475,18 +492,18 @@ class RemoteStorageServer implements RemoteStorage {
      */
     private boolean attachFetch(RemoteTransaction txn, Pipe pipe) {
         if (txn != null) {
-	    try {
-		((RemoteTransactionServer) txn).attach();
-	    } catch (ClassCastException e) {
-		try {
-		    pipe.writeThrowable(new FetchException("Transaction is invalid due to a reconnect"));
-		} catch (IOException i) {
-		    // Ignore
-		}
-		return false;
-	    }
+            try {
+                ((RemoteTransactionServer) txn).attach();
+            } catch (ClassCastException e) {
+                try {
+                    pipe.writeThrowable(new FetchException("Transaction is invalid due to a reconnect"));
+                } catch (IOException i) {
+                    // Ignore
+                }
+                return false;
+            }
         }
-	return true;
+        return true;
     }
 
     /**
@@ -500,18 +517,18 @@ class RemoteStorageServer implements RemoteStorage {
      */
     private boolean attachPersist(RemoteTransaction txn, Pipe pipe) {
         if (txn != null) {
-	    try {
-		((RemoteTransactionServer) txn).attach();
-	    } catch (ClassCastException e) {
-		try {
-		    pipe.writeThrowable(new PersistException("Transaction is invalid due to a reconnect"));
-		} catch (IOException i) {
-		    // Ignore
-		}
-		return false;
-	    }
+            try {
+                ((RemoteTransactionServer) txn).attach();
+            } catch (ClassCastException e) {
+                try {
+                    pipe.writeThrowable(new PersistException("Transaction is invalid due to a reconnect"));
+                } catch (IOException i) {
+                    // Ignore
+                }
+                return false;
+            }
         }
-	return true;
+        return true;
     }
 
     private Query buildQuery(FilterValues fv, OrderingList orderBy) throws FetchException {
