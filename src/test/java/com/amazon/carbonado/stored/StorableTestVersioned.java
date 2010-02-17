@@ -18,8 +18,6 @@
 
 package com.amazon.carbonado.stored;
 
-import java.util.Random;
-
 import org.joda.time.DateTime;
 
 import com.amazon.carbonado.Independent;
@@ -60,61 +58,4 @@ public abstract class StorableTestVersioned implements Storable {
     @Version
     public abstract int getVersion();
     public abstract void setVersion(int version);
-
-    public void initPrimaryKeyProperties() {
-        setId(10);
-    }
-
-    public void initBasicProperties() {
-        setStringProp("foo");
-        setIntProp(10);
-        setLongProp(120);
-        setDoubleProp(1.2);
-    }
-
-    public void initPropertiesRandomly(int id) {
-        setId(id);
-
-        Random random = new Random(1000);
-
-        setIntProp(random.nextInt());
-        setLongProp(random.nextLong());
-        setDoubleProp(random.nextDouble());
-        setStringProp("imaString_" + id % 10);
-    }
-
-    public void initPropertiesPredictably(int id) {
-        setId(id);
-
-        setIntProp(id*10);
-        setLongProp(id*10);
-        setDoubleProp(id/2.0);
-        setStringProp("string-" + id % 100);
-    }
-
-    public static void insertBunches(Repository repository, int count)
-            throws RepositoryException
-    {
-        insertBunches(repository, count, 0, true);
-    }
-
-
-    public static void insertBunches(Repository repository,
-                                     int count, int startId,
-                                     boolean doRandom)
-        throws RepositoryException
-    {
-        Storage<StorableTestBasic> storage = repository.storageFor(StorableTestBasic.class);
-        StorableTestBasic s;
-
-        for (int i = 0; i < count; i ++) {
-            s = storage.prepare();
-            if (doRandom) {
-                s.initPropertiesRandomly(i);
-            } else {
-                s.initPropertiesPredictably(i+startId);
-            }
-            s.insert();
-        }
-    }
 }
