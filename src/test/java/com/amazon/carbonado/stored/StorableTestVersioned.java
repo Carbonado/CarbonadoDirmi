@@ -34,7 +34,7 @@ import com.amazon.carbonado.Version;
  * @author Brian S O'Neill (boneill)
  */
 @PrimaryKey("id")
-public abstract class StorableTestBasic implements Storable {
+public abstract class StorableTestVersioned implements Storable {
     public abstract int getId();
     public abstract void setId(int id);
 
