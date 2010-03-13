@@ -21,6 +21,8 @@ package com.amazon.carbonado.repo.dirmi;
 import java.util.HashMap;
 import java.util.Map;
 
+import java.util.concurrent.TimeUnit;
+
 import java.rmi.Remote;
 
 import org.cojen.dirmi.util.Wrapper;
@@ -76,9 +78,9 @@ public class RemoteRepositoryServer implements RemoteRepository {
     }
 
     public RemoteTransaction enterTransaction(RemoteTransaction parent, IsolationLevel level) {
-	if (!attach(parent)) {
-	    return new FailedTransaction();
-	}
+        if (!attach(parent)) {
+            return new FailedTransaction();
+        }
         try {
             Transaction txn = mRepository.enterTransaction(level);
             txn.detach();
@@ -88,8 +90,33 @@ public class RemoteRepositoryServer implements RemoteRepository {
         }
     }
 
+    public RemoteTransaction enterTransaction(RemoteTransaction parent, IsolationLevel level,
+                                              int timeout, TimeUnit unit)
+    {
+        if (!attach(parent)) {
+            return new FailedTransaction();
+        }
+        try {
+            Transaction txn = mRepository.enterTransaction(level);
+            txn.setDesiredLockTimeout(timeout, unit);
+            txn.detach();
+            return new RemoteTransactionServer(txn);
+        } finally {
+            detach(parent);
+        }
+    }
+
     public RemoteTransaction enterTopTransaction(IsolationLevel level) {
         Transaction txn = mRepository.enterTopTransaction(level);
+        txn.detach();
+        return new RemoteTransactionServer(txn);
+    }
+
+    public RemoteTransaction enterTopTransaction(IsolationLevel level,
+                                                 int timeout, TimeUnit unit)
+    {
+        Transaction txn = mRepository.enterTopTransaction(level);
+        txn.setDesiredLockTimeout(timeout, unit);
         txn.detach();
         return new RemoteTransactionServer(txn);
     }
@@ -109,16 +136,16 @@ public class RemoteRepositoryServer implements RemoteRepository {
 
     private boolean attach(RemoteTransaction parent) {
         if (parent != null) {
-	    try {
-		((RemoteTransactionServer) parent).attach();
-	    } catch (ClassCastException e) {
-		// This means that the parent transaction has been disconnected
-		// and this transaction has nothing to attach to. The client
-		// needs to be notified that it has an invalid transaction.
-		return false;
-	    }
+            try {
+                ((RemoteTransactionServer) parent).attach();
+            } catch (ClassCastException e) {
+                // This means that the parent transaction has been disconnected
+                // and this transaction has nothing to attach to. The client
+                // needs to be notified that it has an invalid transaction.
+                return false;
+            }
         }
-	return true;
+        return true;
     }
 
     private void detach(RemoteTransaction parent) {

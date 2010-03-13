@@ -187,7 +187,7 @@ class RemoteStorageServer implements RemoteStorage {
                 txn = null;
             }
         } catch (IOException e) {
-                // Ignore.
+            // Ignore.
         } catch (SupportException e) {
             // Ignore.
         } finally {

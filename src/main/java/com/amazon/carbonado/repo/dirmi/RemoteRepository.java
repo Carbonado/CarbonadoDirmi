@@ -20,6 +20,8 @@ package com.amazon.carbonado.repo.dirmi;
 
 import java.rmi.Remote;
 
+import java.util.concurrent.TimeUnit;
+
 import org.cojen.dirmi.Batched;
 import org.cojen.dirmi.RemoteFailure;
 
@@ -48,7 +50,16 @@ public interface RemoteRepository extends Remote {
 
     @Batched
     @RemoteFailure(exception=RepositoryException.class, declared=false)
+    RemoteTransaction enterTransaction(RemoteTransaction parent, IsolationLevel level,
+                                       int timeout, TimeUnit unit);
+
+    @Batched
+    @RemoteFailure(exception=RepositoryException.class, declared=false)
     RemoteTransaction enterTopTransaction(IsolationLevel level);
+
+    @Batched
+    @RemoteFailure(exception=RepositoryException.class, declared=false)
+    RemoteTransaction enterTopTransaction(IsolationLevel level, int timeout, TimeUnit unit);
 
     @RemoteFailure(exception=RepositoryException.class)
     RemoteSequenceValueProducer getSequenceValueProducer(String name)

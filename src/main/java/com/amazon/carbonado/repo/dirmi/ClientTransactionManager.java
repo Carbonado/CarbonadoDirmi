@@ -18,6 +18,8 @@
 
 package com.amazon.carbonado.repo.dirmi;
 
+import java.util.concurrent.TimeUnit;
+
 import com.amazon.carbonado.IsolationLevel;
 import com.amazon.carbonado.PersistException;
 import com.amazon.carbonado.Repository;
@@ -40,6 +42,7 @@ class ClientTransactionManager extends TransactionManager<RemoteTransaction> {
         mRepository = repo;
     }
 
+    @Override 
     protected IsolationLevel selectIsolationLevel(Transaction parent, IsolationLevel level) {
         if (level == null) {
             if (parent == null) {
@@ -51,11 +54,13 @@ class ClientTransactionManager extends TransactionManager<RemoteTransaction> {
         return level;
     }
 
+    @Override 
     protected boolean supportsForUpdate() {
         // FIXME: ask remote repository once and cache
         return true;
     }
 
+    @Override 
     protected RemoteTransaction createTxn(RemoteTransaction parent, IsolationLevel level) {
         if (parent == null) {
             return mRepository.getRemoteRepository().enterTopTransaction(level);
@@ -64,11 +69,25 @@ class ClientTransactionManager extends TransactionManager<RemoteTransaction> {
         }
     }
 
+    @Override 
+    protected RemoteTransaction createTxn(RemoteTransaction parent, IsolationLevel level,
+                                          int timeout, TimeUnit unit)
+    {
+        if (parent == null) {
+            return mRepository.getRemoteRepository().enterTopTransaction(level, timeout, unit);
+        } else {
+            return mRepository.getRemoteRepository()
+                .enterTransaction(parent, level, timeout, unit);
+        }
+    }
+
+    @Override 
     protected boolean commitTxn(RemoteTransaction txn) throws PersistException {
         txn.commit();
         return true;
     }
 
+    @Override 
     protected void abortTxn(RemoteTransaction txn) throws PersistException {
         txn.exit();
     }
