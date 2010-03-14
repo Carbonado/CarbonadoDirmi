@@ -34,6 +34,8 @@ import com.amazon.carbonado.Storage;
 import com.amazon.carbonado.SupportException;
 import com.amazon.carbonado.Transaction;
 
+import com.amazon.carbonado.layout.Layout;
+
 import com.amazon.carbonado.sequence.SequenceCapability;
 import com.amazon.carbonado.sequence.SequenceValueProducer;
 
@@ -52,29 +54,38 @@ public class RemoteRepositoryServer implements RemoteRepository {
     }
 
     private final Repository mRepository;
-    private Map<Class, RemoteStorage> mStorageMap;
+    private Map<StorableLayoutKey, RemoteStorage> mStorageMap;
 
     private RemoteRepositoryServer(Repository repo) {
         mRepository = repo;
-        mStorageMap = new HashMap<Class, RemoteStorage>();
+        mStorageMap = new HashMap<StorableLayoutKey, RemoteStorage>();
     }
 
     public String getName() {
         return mRepository.getName();
     }
 
-    public RemoteStorage storageFor(Class storableType)
+    public RemoteStorageTransport storageFor(StorableTypeTransport transport)
         throws RepositoryException
     {
+        Class storableType = transport.getStorableType();
+        Layout clientLayout = transport.getLayout();
+        StorableLayoutKey key = new StorableLayoutKey(storableType, clientLayout);
+
+        RemoteStorage remoteStorage;
         synchronized (mStorageMap) {
-            RemoteStorage remoteStorage = mStorageMap.get(storableType);
+            remoteStorage = mStorageMap.get(key);
             if (remoteStorage == null) {
                 Storage storage = mRepository.storageFor(storableType);
-                remoteStorage = new RemoteStorageServer(storage);
-                mStorageMap.put(storableType, remoteStorage);
+                StorableWriter writer =
+                    ReconstructedCache.THE.writerFor(storableType, clientLayout);
+                remoteStorage = new RemoteStorageServer(storage, writer);
+                mStorageMap.put(key, remoteStorage);
             }
-            return remoteStorage;
         }
+
+        Layout localLayout = ReconstructedCache.THE.layoutFor(storableType);
+        return new RemoteStorageTransport(storableType, localLayout, remoteStorage);
     }
 
     public RemoteTransaction enterTransaction(RemoteTransaction parent, IsolationLevel level) {

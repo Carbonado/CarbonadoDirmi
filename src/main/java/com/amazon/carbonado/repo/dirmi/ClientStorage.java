@@ -70,12 +70,9 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     private final InstanceFactory mInstanceFactory;
     private final ClientQueryFactory<S> mQueryFactory;
 
-    // Cache of independent property support.
-    private final Set<String> mSupportedProperties;
+    private volatile StorageProxy mStorageProxy;
 
-    private volatile RemoteStorage mStorage;
-
-    ClientStorage(Class<S> type, ClientRepository repo, RemoteStorage storage)
+    ClientStorage(Class<S> type, ClientRepository repo, RemoteStorageTransport transport)
         throws SupportException, RepositoryException
     {
         mType = type;
@@ -92,10 +89,8 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
 
         mQueryFactory = new ClientQueryFactory<S>(type, this);
 
-        mSupportedProperties = new HashSet<String>(1);
-
         // Set mStorage and determine supported independent properties.
-        reconnect(storage);
+        reconnect(transport);
     }
 
     public Class<S> getStorableType() {
@@ -120,7 +115,7 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
 
     public void truncate() throws PersistException {
         try {
-            mStorage.truncate(mRepository.localTransactionScope().getTxn());
+            mStorageProxy.mStorage.truncate(mRepository.localTransactionScope().getTxn());
         } catch (PersistException e) {
             throw e;
         } catch (RuntimeException e) {
@@ -143,9 +138,7 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     }
 
     public boolean isPropertySupported(String propertyName) {
-        synchronized (mSupportedProperties) {
-            return mSupportedProperties.contains(propertyName);
-        }
+        return mStorageProxy.mSupportedProperties.contains(propertyName);
     }
 
     public Trigger<? super S> getInsertTrigger() {
@@ -183,10 +176,11 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
                 throw new FetchException("Transaction invalid due to a reconnect");
             }
 
-            Pipe pipe = mStorage.tryLoad(txn, null);
+            StorageProxy<S> proxy = mStorageProxy;
+
+            Pipe pipe = proxy.mStorage.tryLoad(txn, null);
             try {
-                // FIXME: just write the primary or alternate keys somehow
-                storable.writeTo(pipe.getOutputStream());
+                proxy.mWriter.writeForLoad(storable, pipe.getOutputStream());
                 pipe.flush();
                 RepositoryException ex = (RepositoryException) pipe.readThrowable();
                 if (ex != null) {
@@ -216,9 +210,11 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
                 throw new PersistException("Transaction invalid due to a reconnect");
             }
 
-            Pipe pipe = mStorage.tryInsert(txn, null);
+            StorageProxy<S> proxy = mStorageProxy;
+
+            Pipe pipe = proxy.mStorage.tryInsert(txn, null);
             try {
-                storable.writeTo(pipe.getOutputStream());
+                proxy.mWriter.writeForInsert(storable, pipe.getOutputStream());
                 pipe.flush();
                 RepositoryException ex = (RepositoryException) pipe.readThrowable();
                 if (ex != null) {
@@ -253,9 +249,11 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
                 throw new PersistException("Transaction invalid due to a reconnect");
             }
 
-            Pipe pipe = mStorage.tryUpdate(txn, null);
+            StorageProxy<S> proxy = mStorageProxy;
+
+            Pipe pipe = proxy.mStorage.tryUpdate(txn, null);
             try {
-                storable.writeTo(pipe.getOutputStream());
+                proxy.mWriter.writeForUpdate(storable, pipe.getOutputStream());
                 pipe.flush();
                 RepositoryException ex = (RepositoryException) pipe.readThrowable();
                 if (ex != null) {
@@ -290,10 +288,11 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
                 throw new PersistException("Transaction invalid due to a reconnect");
             }
 
-            Pipe pipe = mStorage.tryDelete(txn, null);
+            StorageProxy<S> proxy = mStorageProxy;
+
+            Pipe pipe = proxy.mStorage.tryDelete(txn, null);
             try {
-                // FIXME: just write the primary or alternate keys somehow
-                storable.writeTo(pipe.getOutputStream());
+                proxy.mWriter.writeForDelete(storable, pipe.getOutputStream());
                 pipe.flush();
                 RepositoryException ex = (RepositoryException) pipe.readThrowable();
                 if (ex != null) {
@@ -319,7 +318,7 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     long queryCount(FilterValues<S> fv) throws FetchException {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
-            return mStorage.queryCount(fv, txn);
+            return mStorageProxy.mStorage.queryCount(fv, txn);
         } catch (FetchException e) {
             throw e;
         } catch (RuntimeException e) {
@@ -332,7 +331,7 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     Pipe queryFetch(FilterValues fv, OrderingList orderBy) throws FetchException {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
-            return mStorage.queryFetch(fv, orderBy, null, null, txn, null);
+            return mStorageProxy.mStorage.queryFetch(fv, orderBy, null, null, txn, null);
         } catch (FetchException e) {
             throw e;
         } catch (RuntimeException e) {
@@ -347,7 +346,7 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
-            return mStorage.queryFetch(fv, orderBy, from, to, txn, null);
+            return mStorageProxy.mStorage.queryFetch(fv, orderBy, from, to, txn, null);
         } catch (FetchException e) {
             throw e;
         } catch (RuntimeException e) {
@@ -364,7 +363,7 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
                 throw new FetchException("Transaction invalid due to a reconnect");
             }
 
-            Pipe pipe = mStorage.queryLoadOne(fv, txn, null);
+            Pipe pipe = mStorageProxy.mStorage.queryLoadOne(fv, txn, null);
             try {
                 RepositoryException ex = (RepositoryException) pipe.readThrowable();
                 if (ex != null) {
@@ -392,7 +391,7 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
                 throw new FetchException("Transaction invalid due to a reconnect");
             }
 
-            Pipe pipe = mStorage.queryTryLoadOne(fv, txn, null);
+            Pipe pipe = mStorageProxy.mStorage.queryTryLoadOne(fv, txn, null);
             try {
                 RepositoryException ex = (RepositoryException) pipe.readThrowable();
                 if (ex != null) {
@@ -418,7 +417,8 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
 
     void queryDeleteOne(FilterValues fv) throws PersistException {
         try {
-            mStorage.queryDeleteOne(fv, mRepository.localTransactionScope().getTxn());
+            mStorageProxy.mStorage.queryDeleteOne
+                (fv, mRepository.localTransactionScope().getTxn());
         } catch (FetchException e) {
             throw e.toPersistException();
         } catch (RuntimeException e) {
@@ -430,7 +430,8 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
 
     boolean queryTryDeleteOne(FilterValues fv) throws PersistException {
         try {
-            return mStorage.queryTryDeleteOne(fv, mRepository.localTransactionScope().getTxn());
+            return mStorageProxy.mStorage.queryTryDeleteOne
+                (fv, mRepository.localTransactionScope().getTxn());
         } catch (FetchException e) {
             throw e.toPersistException();
         } catch (RuntimeException e) {
@@ -442,7 +443,8 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
 
     void queryDeleteAll(FilterValues fv) throws PersistException {
         try {
-            mStorage.queryDeleteAll(fv, mRepository.localTransactionScope().getTxn());
+            mStorageProxy.mStorage.queryDeleteAll
+                (fv, mRepository.localTransactionScope().getTxn());
         } catch (FetchException e) {
             throw e.toPersistException();
         } catch (RuntimeException e) {
@@ -455,20 +457,23 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     String queryPrintNative(FilterValues fv, OrderingList orderBy, int indentLevel)
         throws FetchException
     {
-        return mStorage.queryPrintNative(fv, orderBy, indentLevel);
+        return mStorageProxy.mStorage.queryPrintNative(fv, orderBy, indentLevel);
     }
 
     String queryPrintPlan(FilterValues fv, OrderingList orderBy, int indentLevel)
         throws FetchException
     {
-        return mStorage.queryPrintPlan(fv, orderBy, indentLevel);
+        return mStorageProxy.mStorage.queryPrintPlan(fv, orderBy, indentLevel);
     }
 
     public static interface InstanceFactory {
         Storable instantiate(DelegateSupport support);
     }
 
-    void reconnect(RemoteStorage storage) throws FetchException {
+    void reconnect(RemoteStorageTransport transport) throws RepositoryException {
+        RemoteStorage storage = transport.getRemoteStorage();
+        StorableWriter<S> writer = ReconstructedCache.THE.writerFor(mType, transport.getLayout());
+
         List<String> indieList = null;
         for (StorableProperty<S> property :
                  StorableIntrospector.examine(mType).getAllProperties().values())
@@ -483,18 +488,25 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
 
         Set<String> supported;
         if (indieList == null) {
-            supported = null;
+            supported = Collections.emptySet();
         } else {
             supported = storage.getPropertySupport(indieList.toArray(new String[0]));
         }
 
-        synchronized (mSupportedProperties) {
+        mStorageProxy = new StorageProxy<S>(storage, writer, supported);
+    }
+
+    // Allows several objects to be swapped-in atomically.
+    private static final class StorageProxy<S extends Storable> {
+        final RemoteStorage mStorage;
+        final StorableWriter<S> mWriter;
+        // Cache of independent property support.
+        final Set<String> mSupportedProperties;
+
+        StorageProxy(RemoteStorage storage, StorableWriter<S> writer, Set<String> supported) {
             mStorage = storage;
-            if (supported == null) {
-                mSupportedProperties.clear();
-            } else {
-                mSupportedProperties.retainAll(supported);
-            }
+            mWriter = writer;
+            mSupportedProperties = supported;
         }
     }
 }

@@ -57,9 +57,11 @@ class RemoteStorageServer implements RemoteStorage {
     static final byte CURSOR_END = 2;
 
     private final Storage mStorage;
+    private final StorableWriter mWriter;
 
-    RemoteStorageServer(Storage storage) throws SupportException {
+    RemoteStorageServer(Storage storage, StorableWriter writer) throws SupportException {
         mStorage = storage;
+        mWriter = writer;
     }
 
     public Pipe tryLoad(RemoteTransaction txn, Pipe pipe) {
@@ -85,7 +87,7 @@ class RemoteStorageServer implements RemoteStorage {
                 
                 if (loaded) {
                     pipe.writeBoolean(true);
-                    s.writeTo(pipe.getOutputStream());
+                    mWriter.writeLoadResponse(s, pipe.getOutputStream());
                 } else {
                     pipe.writeBoolean(false);
                 }
@@ -132,7 +134,7 @@ class RemoteStorageServer implements RemoteStorage {
                 if (inserted) {
                     // FIXME: As an optimization, pass nothing back if unchanged
                     pipe.write(STORABLE_CHANGED);
-                    s.writeTo(pipe.getOutputStream());
+                    mWriter.writeInsertResponse(s, pipe.getOutputStream());
                 } else {
                     pipe.write(STORABLE_CHANGE_FAILED);
                 }
@@ -179,7 +181,7 @@ class RemoteStorageServer implements RemoteStorage {
                 if (updated) {
                     // FIXME: As an optimization, pass nothing back if unchanged
                     pipe.write(STORABLE_CHANGED);
-                    s.writeTo(pipe.getOutputStream());
+                    mWriter.writeUpdateResponse(s, pipe.getOutputStream());
                 } else {
                     pipe.write(STORABLE_CHANGE_FAILED);
                 }
@@ -279,7 +281,7 @@ class RemoteStorageServer implements RemoteStorage {
                     while (cursor.hasNext()) {
                         Storable s = (Storable) cursor.next();
                         out.write(CURSOR_STORABLE);
-                        s.writeTo(out);
+                        mWriter.writeLoadResponse(s, out);
                     }
                 } finally {
                     cursor.close();
@@ -316,7 +318,7 @@ class RemoteStorageServer implements RemoteStorage {
                 }
                 
                 pipe.writeThrowable(null);
-                s.writeTo(pipe.getOutputStream());
+                mWriter.writeLoadResponse(s, pipe.getOutputStream());
             } else {
                 txn = null;
             }
@@ -351,7 +353,7 @@ class RemoteStorageServer implements RemoteStorage {
                 
                 if (s != null) {
                     pipe.writeBoolean(true);
-                    s.writeTo(pipe.getOutputStream());
+                    mWriter.writeLoadResponse(s, pipe.getOutputStream());
                 } else {
                     pipe.writeBoolean(false);
                 }
@@ -496,7 +498,8 @@ class RemoteStorageServer implements RemoteStorage {
                 ((RemoteTransactionServer) txn).attach();
             } catch (ClassCastException e) {
                 try {
-                    pipe.writeThrowable(new FetchException("Transaction is invalid due to a reconnect"));
+                    pipe.writeThrowable
+                        (new FetchException("Transaction is invalid due to a reconnect"));
                 } catch (IOException i) {
                     // Ignore
                 }
@@ -521,7 +524,8 @@ class RemoteStorageServer implements RemoteStorage {
                 ((RemoteTransactionServer) txn).attach();
             } catch (ClassCastException e) {
                 try {
-                    pipe.writeThrowable(new PersistException("Transaction is invalid due to a reconnect"));
+                    pipe.writeThrowable
+                        (new PersistException("Transaction is invalid due to a reconnect"));
                 } catch (IOException i) {
                     // Ignore
                 }

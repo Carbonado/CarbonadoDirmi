@@ -27,6 +27,8 @@ import com.amazon.carbonado.RepositoryException;
 import com.amazon.carbonado.Storable;
 import com.amazon.carbonado.Storage;
 
+import com.amazon.carbonado.layout.Layout;
+
 import com.amazon.carbonado.sequence.SequenceValueProducer;
 
 import com.amazon.carbonado.spi.AbstractRepository;
@@ -75,7 +77,7 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction> {
         for (Storage s : allStorage()) {
             if (s != null) {
                 ClientStorage curr = (ClientStorage) storageFor(s.getStorableType());
-                curr.reconnect(remote.storageFor(s.getStorableType()));
+                curr.reconnect(remoteStorageFor(remote, s.getStorableType()));
             }
         }
         for (String p : mSequenceNames.keySet()) {
@@ -118,7 +120,7 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction> {
     protected <S extends Storable> Storage<S> createStorage(Class<S> type)
         throws RepositoryException
     {
-        return new ClientStorage<S>(type, this, mRepository.storageFor(type));
+        return new ClientStorage<S>(type, this, remoteStorageFor(mRepository, type));
     }
 
     @Override
@@ -139,5 +141,13 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction> {
     @Override
     protected final TransactionScope<RemoteTransaction> localTransactionScope() {
         return mTxnMgr.localScope();
+    }
+
+    private RemoteStorageTransport remoteStorageFor(RemoteRepository remote,
+                                                    Class<? extends Storable> type)
+        throws RepositoryException
+    {
+        Layout localLayout = ReconstructedCache.THE.layoutFor(type);
+        return remote.storageFor(new StorableTypeTransport(type, localLayout));
     }
 }

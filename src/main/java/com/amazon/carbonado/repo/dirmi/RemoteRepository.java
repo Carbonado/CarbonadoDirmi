@@ -42,7 +42,8 @@ public interface RemoteRepository extends Remote {
     String getName() throws RepositoryException;
 
     @RemoteFailure(exception=RepositoryException.class)
-    RemoteStorage storageFor(Class storableType) throws RepositoryException;
+    RemoteStorageTransport storageFor(StorableTypeTransport transport)
+        throws RepositoryException;
 
     @Batched
     @RemoteFailure(exception=RepositoryException.class, declared=false)
