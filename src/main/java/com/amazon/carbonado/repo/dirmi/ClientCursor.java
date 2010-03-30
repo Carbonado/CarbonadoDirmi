@@ -43,12 +43,12 @@ public class ClientCursor<S extends Storable> extends AbstractCursor<S> {
     private boolean mClosed;
 
     ClientCursor(ClientStorage<S> storage, Pipe pipe) throws FetchException {
-	mStorage = storage;
+        mStorage = storage;
         mPipe = pipe;
-	
-	// Called to ensure that server has detached from thread local 
-	// transaction at this point
-	this.hasNext(); 
+        
+        // Called to ensure that server has detached from thread local 
+        // transaction at this point
+        this.hasNext(); 
     }
 
     public void close() throws FetchException {
@@ -73,21 +73,23 @@ public class ClientCursor<S extends Storable> extends AbstractCursor<S> {
         }
 
         try {
-            byte type = mPipe.readByte();
+            Pipe pipe = mPipe;
+            byte type = pipe.readByte();
             if (type == RemoteStorageServer.CURSOR_STORABLE) {
                 S next = mStorage.prepare();
-                next.readFrom(mPipe.getInputStream());
+                next.readFrom(pipe.getInputStream());
                 mNext = next;
                 return true;
             } else if (type == RemoteStorageServer.CURSOR_EXCEPTION) {
-                throw (Exception) mPipe.readObject();
+                throw pipe.readThrowable();
             }
             mClosed = true;
+            pipe.close();
         } catch (Error e) {
             throw e;
         } catch (RuntimeException e) {
             throw e;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             try {
                 close();
             } catch (Exception e2) {

@@ -181,7 +181,6 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             Pipe pipe = proxy.mStorage.tryLoad(txn, null);
             try {
                 proxy.mWriter.writeForLoad(storable, pipe.getOutputStream());
-                pipe.flush();
                 RepositoryException ex = (RepositoryException) pipe.readThrowable();
                 if (ex != null) {
                     throw ex.toFetchException();
@@ -215,7 +214,6 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             Pipe pipe = proxy.mStorage.tryInsert(txn, null);
             try {
                 proxy.mWriter.writeForInsert(storable, pipe.getOutputStream());
-                pipe.flush();
                 RepositoryException ex = (RepositoryException) pipe.readThrowable();
                 if (ex != null) {
                     throw ex.toPersistException();
@@ -254,7 +252,6 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             Pipe pipe = proxy.mStorage.tryUpdate(txn, null);
             try {
                 proxy.mWriter.writeForUpdate(storable, pipe.getOutputStream());
-                pipe.flush();
                 RepositoryException ex = (RepositoryException) pipe.readThrowable();
                 if (ex != null) {
                     throw ex.toPersistException();
@@ -293,7 +290,6 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             Pipe pipe = proxy.mStorage.tryDelete(txn, null);
             try {
                 proxy.mWriter.writeForDelete(storable, pipe.getOutputStream());
-                pipe.flush();
                 RepositoryException ex = (RepositoryException) pipe.readThrowable();
                 if (ex != null) {
                     throw ex.toPersistException();

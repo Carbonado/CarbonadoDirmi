@@ -291,7 +291,7 @@ class RemoteStorageServer implements RemoteStorage {
                 throw e;
             } catch (Exception e) {
                 out.write(CURSOR_EXCEPTION);
-                pipe.writeObject(e);
+                pipe.writeThrowable(e);
             }
         } catch (IOException e) {
             throw new FetchException(e);

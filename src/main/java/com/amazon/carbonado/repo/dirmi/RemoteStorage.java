@@ -23,6 +23,7 @@ import java.rmi.Remote;
 import java.util.Set;
 
 import org.cojen.dirmi.Asynchronous;
+import org.cojen.dirmi.CallMode;
 import org.cojen.dirmi.Pipe;
 import org.cojen.dirmi.RemoteFailure;
 
@@ -53,7 +54,7 @@ public interface RemoteStorage extends Remote {
      * @param pipe send serialized key properties
      * @return true if loaded
      */
-    @Asynchronous
+    @Asynchronous(CallMode.REQUEST_REPLY)
     @RemoteFailure(exception=FetchException.class)
     Pipe tryLoad(RemoteTransaction txn, Pipe pipe) throws FetchException;
 
@@ -65,7 +66,7 @@ public interface RemoteStorage extends Remote {
      * @param pipe send fully serialized storable
      * @return true if inserted
      */
-    @Asynchronous
+    @Asynchronous(CallMode.REQUEST_REPLY)
     @RemoteFailure(exception=PersistException.class)
     Pipe tryInsert(RemoteTransaction txn, Pipe pipe) throws PersistException;
 
@@ -77,7 +78,7 @@ public interface RemoteStorage extends Remote {
      * @param pipe send fully serialized storable
      * @return true if updated
      */
-    @Asynchronous
+    @Asynchronous(CallMode.REQUEST_REPLY)
     @RemoteFailure(exception=PersistException.class)
     Pipe tryUpdate(RemoteTransaction txn, Pipe pipe) throws PersistException;
 
@@ -89,7 +90,7 @@ public interface RemoteStorage extends Remote {
      * @param pipe send serialized key properties
      * @return true if deleted
      */
-    @Asynchronous
+    @Asynchronous(CallMode.REQUEST_REPLY)
     @RemoteFailure(exception=PersistException.class)
     Pipe tryDelete(RemoteTransaction txn, Pipe pipe) throws PersistException;
 
@@ -111,7 +112,7 @@ public interface RemoteStorage extends Remote {
      * @param to optional
      * @param txn optional
      */
-    @Asynchronous
+    @Asynchronous(CallMode.REQUEST_REPLY)
     @RemoteFailure(exception=FetchException.class)
     Pipe queryFetch(FilterValues fv, OrderingList orderBy, Long from, Long to,
                     RemoteTransaction txn, Pipe pipe)
@@ -123,7 +124,7 @@ public interface RemoteStorage extends Remote {
      * @param fv optional
      * @param txn optional
      */
-    @Asynchronous
+    @Asynchronous(CallMode.REQUEST_REPLY)
     @RemoteFailure(exception=FetchException.class)
     Pipe queryLoadOne(FilterValues fv, RemoteTransaction txn, Pipe pipe) throws FetchException;
 
@@ -133,7 +134,7 @@ public interface RemoteStorage extends Remote {
      * @param fv optional
      * @param txn optional
      */
-    @Asynchronous
+    @Asynchronous(CallMode.REQUEST_REPLY)
     @RemoteFailure(exception=FetchException.class)
     Pipe queryTryLoadOne(FilterValues fv, RemoteTransaction txn, Pipe pipe) throws FetchException;
 
