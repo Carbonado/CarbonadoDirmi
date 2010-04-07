@@ -294,11 +294,7 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
                 if (ex != null) {
                     throw ex.toPersistException();
                 }
-                if (pipe.readBoolean()) {
-                    storable.readFrom(pipe.getInputStream());
-                    return true;
-                }
-                return false;
+                return pipe.readBoolean();
             } finally {
                 pipe.close();
             }
