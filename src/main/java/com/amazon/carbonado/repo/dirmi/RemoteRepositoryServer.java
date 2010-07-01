@@ -18,12 +18,17 @@
 
 package com.amazon.carbonado.repo.dirmi;
 
+import java.io.IOException;
+
 import java.util.HashMap;
 import java.util.Map;
 
 import java.util.concurrent.TimeUnit;
 
 import java.rmi.Remote;
+import java.rmi.RemoteException;
+
+import org.cojen.dirmi.Pipe;
 
 import org.cojen.dirmi.util.Wrapper;
 
@@ -86,6 +91,32 @@ public class RemoteRepositoryServer implements RemoteRepository {
 
         Layout localLayout = ReconstructedCache.THE.layoutFor(storableType);
         return new RemoteStorageTransport(storableType, localLayout, remoteStorage);
+    }
+
+    public Pipe storageRequest(StorageResponse response, Pipe pipe) {
+        try {
+            StorableTypeTransport request;
+            try {
+                request = (StorableTypeTransport) pipe.readObject();
+                response.complete(storageFor(request));
+            } catch (Exception e) {
+                response.exception(e);
+            }
+        } catch (IOException e) {
+            try {
+                response.exception(e);
+            } catch (RemoteException e2) {
+                // Ignore.
+            }
+        } finally {
+            try {
+                pipe.close();
+            } catch (IOException e) {
+                // Ignore.
+            }
+        }
+
+        return null;
     }
 
     public RemoteTransaction enterTransaction(RemoteTransaction parent, IsolationLevel level) {

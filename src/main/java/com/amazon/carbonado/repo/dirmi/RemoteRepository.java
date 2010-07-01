@@ -19,10 +19,14 @@
 package com.amazon.carbonado.repo.dirmi;
 
 import java.rmi.Remote;
+import java.rmi.RemoteException;
 
 import java.util.concurrent.TimeUnit;
 
+import org.cojen.dirmi.Asynchronous;
 import org.cojen.dirmi.Batched;
+import org.cojen.dirmi.CallMode;
+import org.cojen.dirmi.Pipe;
 import org.cojen.dirmi.RemoteFailure;
 
 import com.amazon.carbonado.IsolationLevel;
@@ -44,6 +48,17 @@ public interface RemoteRepository extends Remote {
     @RemoteFailure(exception=RepositoryException.class)
     RemoteStorageTransport storageFor(StorableTypeTransport transport)
         throws RepositoryException;
+
+    @Asynchronous(CallMode.REQUEST_REPLY)
+    Pipe storageRequest(StorageResponse response, Pipe pipe) throws RemoteException;
+
+    public static interface StorageResponse extends Remote {
+        @Asynchronous
+        void complete(RemoteStorageTransport storage) throws RemoteException;
+
+        @Asynchronous
+        void exception(Throwable cause) throws RemoteException;
+    }
 
     @Batched
     @RemoteFailure(exception=RepositoryException.class, declared=false)
