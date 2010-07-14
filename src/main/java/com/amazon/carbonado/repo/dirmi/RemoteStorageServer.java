@@ -55,13 +55,18 @@ class RemoteStorageServer implements RemoteStorage {
     static final byte CURSOR_STORABLE = 0;
     static final byte CURSOR_EXCEPTION = 1;
     static final byte CURSOR_END = 2;
+    static final byte CURSOR_START = 3;
 
     private final Storage mStorage;
     private final StorableWriter mWriter;
+    private final boolean mWriteStartMarker;
 
-    RemoteStorageServer(Storage storage, StorableWriter writer) throws SupportException {
+    RemoteStorageServer(Storage storage, StorableWriter writer, boolean writeStartMarker)
+        throws SupportException
+    {
         mStorage = storage;
         mWriter = writer;
+        mWriteStartMarker = writeStartMarker;
     }
 
     public Pipe tryLoad(RemoteTransaction txn, Pipe pipe) {
@@ -277,6 +282,12 @@ class RemoteStorageServer implements RemoteStorage {
                     detach(txn);
                 }
 
+                if (txn != null && mWriteStartMarker) {
+                    // Indicate that cursor is using correct transaction.
+                    out.write(CURSOR_START);
+                    out.flush();
+                }
+
                 try {
                     while (cursor.hasNext()) {
                         Storable s = (Storable) cursor.next();
@@ -286,6 +297,7 @@ class RemoteStorageServer implements RemoteStorage {
                 } finally {
                     cursor.close();
                 }
+
                 out.write(CURSOR_END);
             } catch (IOException e) {
                 throw e;
@@ -296,7 +308,6 @@ class RemoteStorageServer implements RemoteStorage {
         } catch (IOException e) {
             throw new FetchException(e);
         } finally {
-            detach(txn);
             try {
                 pipe.close();
             } catch (IOException e) {

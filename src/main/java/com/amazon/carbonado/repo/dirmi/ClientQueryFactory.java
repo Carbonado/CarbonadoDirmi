@@ -18,8 +18,6 @@
 
 package com.amazon.carbonado.repo.dirmi;
 
-import org.cojen.dirmi.Pipe;
-
 import com.amazon.carbonado.FetchException;
 import com.amazon.carbonado.Storable;
 
@@ -44,6 +42,7 @@ class ClientQueryFactory<S extends Storable> extends StandardQueryFactory<S> {
         mStorage = storage;
     }
 
+    @Override
     protected StandardQuery<S> createQuery(Filter<S> filter,
                                            FilterValues<S> values,
                                            OrderingList<S> ordering,
@@ -51,32 +50,6 @@ class ClientQueryFactory<S extends Storable> extends StandardQueryFactory<S> {
         throws FetchException
     {
         return new ClientQuery<S>(this, filter, values, ordering, hints);
-    }
-
-    long queryCount(FilterValues<S> values) throws FetchException {
-        return mStorage.queryCount(values);
-    }
-
-    Pipe queryFetch(FilterValues fv, OrderingList orderBy) throws FetchException {
-        return mStorage.queryFetch(fv, orderBy);
-    }
-
-    Pipe queryFetch(FilterValues fv, OrderingList orderBy, long from, Long to)
-        throws FetchException
-    {
-        return mStorage.queryFetch(fv, orderBy, from, to);
-    }
-
-    String queryPrintNative(FilterValues fv, OrderingList orderBy, int indentLevel)
-        throws FetchException
-    {
-        return mStorage.queryPrintNative(fv, orderBy, indentLevel);
-    }
-
-    String queryPrintPlan(FilterValues fv, OrderingList orderBy, int indentLevel)
-        throws FetchException
-    {
-        return mStorage.queryPrintPlan(fv, orderBy, indentLevel);
     }
 
     ClientStorage<S> clientStorage() {

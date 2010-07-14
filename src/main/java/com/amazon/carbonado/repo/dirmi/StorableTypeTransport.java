@@ -37,16 +37,30 @@ import com.amazon.carbonado.layout.LayoutFactory;
  * @author Brian S O'Neill
  */
 public class StorableTypeTransport implements Serializable {
+    private static final long serialVersionUID = -2052346822135818736L;
+
+    private final int mProtocolVersion;
     private final Class<? extends Storable> mType;
     private volatile transient Layout mLayout;
 
     StorableTypeTransport(Class<? extends Storable> type, Layout layout) {
+        // 0: First protocol version.
+        // 1: Introduce RemoteStorageServer.CURSOR_START marker.
+        this(1, type, layout);
+    }
+
+    StorableTypeTransport(int protocolVersion, Class<? extends Storable> type, Layout layout) {
+        mProtocolVersion = protocolVersion;
         mType = type;
         mLayout = layout;
     }
 
     Class<? extends Storable> getStorableType() {
         return mType;
+    }
+
+    int getProtocolVersion() {
+        return mProtocolVersion;
     }
 
     Layout getLayout() {

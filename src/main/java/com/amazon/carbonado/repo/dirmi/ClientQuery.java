@@ -81,18 +81,22 @@ class ClientQuery<S extends Storable> extends StandardQuery<S> implements QueryE
         mQueryFactory.clientStorage().queryDeleteAll(getFilterValues());
     }
 
+    @Override
     protected Transaction enterTransaction(IsolationLevel level) {
         return null;
     }
 
+    @Override
     protected QueryFactory<S> queryFactory() {
         return mQueryFactory;
     }
 
+    @Override
     protected QueryExecutorFactory<S> executorFactory() {
         return this;
     }
 
+    @Override
     protected StandardQuery<S> newInstance(FilterValues<S> values,
                                            OrderingList<S> ordering,
                                            QueryHints hints)
@@ -100,6 +104,7 @@ class ClientQuery<S extends Storable> extends StandardQuery<S> implements QueryE
         return new ClientQuery<S>(mQueryFactory, values.getFilter(), values, ordering, hints);
     }
 
+    @Override
     public QueryExecutor<S> executor(Filter<S> filter,
                                      OrderingList<S> ordering,
                                      QueryHints hints)
@@ -122,19 +127,17 @@ class ClientQuery<S extends Storable> extends StandardQuery<S> implements QueryE
         }
 
         public Cursor<S> fetch(FilterValues<S> values) throws FetchException {
-            return new ClientCursor<S>(mQueryFactory.clientStorage(),
-                                       mQueryFactory.queryFetch(values, mOrdering));
+            return mQueryFactory.clientStorage().queryFetch(values, mOrdering, null, null);
         }
 
         public Cursor<S> fetchSlice(FilterValues<S> values, long from, Long to)
             throws FetchException
         {
-            return new ClientCursor<S>(mQueryFactory.clientStorage(),
-                                       mQueryFactory.queryFetch(values, mOrdering, from, to));
+            return mQueryFactory.clientStorage().queryFetch(values, mOrdering, from, to);
         }
 
         public long count(FilterValues<S> values) throws FetchException {
-            return mQueryFactory.queryCount(values);
+            return mQueryFactory.clientStorage().queryCount(values);
         }
 
         public Filter<S> getFilter() {
@@ -151,7 +154,8 @@ class ClientQuery<S extends Storable> extends StandardQuery<S> implements QueryE
             throws IOException
         {
             try {
-                String str = mQueryFactory.queryPrintNative(values, mOrdering, indentLevel);
+                String str = mQueryFactory.clientStorage()
+                    .queryPrintNative(values, mOrdering, indentLevel);
                 if (str == null) {
                     return false;
                 }
@@ -168,7 +172,8 @@ class ClientQuery<S extends Storable> extends StandardQuery<S> implements QueryE
             throws IOException
         {
             try {
-                String str = mQueryFactory.queryPrintPlan(values, mOrdering, indentLevel);
+                String str = mQueryFactory.clientStorage()
+                    .queryPrintPlan(values, mOrdering, indentLevel);
                 if (str == null) {
                     return false;
                 }

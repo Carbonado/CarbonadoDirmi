@@ -42,13 +42,9 @@ public class ClientCursor<S extends Storable> extends AbstractCursor<S> {
     private S mNext;
     private boolean mClosed;
 
-    ClientCursor(ClientStorage<S> storage, Pipe pipe) throws FetchException {
+    ClientCursor(ClientStorage<S> storage, Pipe pipe) {
         mStorage = storage;
         mPipe = pipe;
-        
-        // Called to ensure that server has detached from thread local 
-        // transaction at this point
-        this.hasNext(); 
     }
 
     public void close() throws FetchException {

@@ -69,6 +69,7 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     private final TriggerManager<S> mTriggerManager;
     private final InstanceFactory mInstanceFactory;
     private final ClientQueryFactory<S> mQueryFactory;
+    private final boolean mReadStartMarker;
 
     private volatile StorageProxy mStorageProxy;
 
@@ -88,6 +89,8 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             .getInstance(delegateStorableClass, InstanceFactory.class);
 
         mQueryFactory = new ClientQueryFactory<S>(type, this);
+
+        mReadStartMarker = transport.getProtocolVersion() >= 1;
 
         // Set mStorage and determine supported independent properties.
         reconnect(transport);
@@ -320,25 +323,31 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
         }
     }
 
-    Pipe queryFetch(FilterValues fv, OrderingList orderBy) throws FetchException {
-        try {
-            RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
-            return mStorageProxy.mStorage.queryFetch(fv, orderBy, null, null, txn, null);
-        } catch (FetchException e) {
-            throw e;
-        } catch (RuntimeException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new FetchException(e);
-        }
-    }
-
-    Pipe queryFetch(FilterValues fv, OrderingList orderBy, long from, Long to)
+    ClientCursor<S> queryFetch(FilterValues fv, OrderingList orderBy, Long from, Long to)
         throws FetchException
     {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
-            return mStorageProxy.mStorage.queryFetch(fv, orderBy, from, to, txn, null);
+            Pipe pipe = mStorageProxy.mStorage.queryFetch(fv, orderBy, from, to, txn, null);
+            ClientCursor<S> cursor = new ClientCursor<S>(this, pipe);
+            if (txn != null) {
+                // Block until server has created it's cursor against the
+                // transaction we just passed to it.
+                if (mReadStartMarker) {
+                    if (pipe.readByte() != RemoteStorageServer.CURSOR_START) {
+                        try {
+                            cursor.close();
+                        } catch (FetchException e) {
+                            // Ignore.
+                        }
+                        throw new FetchException("Cursor protocol error");
+                    }
+                } else {
+                    // Fallback to potentially slower method.
+                    cursor.hasNext();
+                }
+            }
+            return cursor;
         } catch (FetchException e) {
             throw e;
         } catch (RuntimeException e) {

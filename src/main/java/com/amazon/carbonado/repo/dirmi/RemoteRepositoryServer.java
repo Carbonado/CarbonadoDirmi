@@ -73,6 +73,7 @@ public class RemoteRepositoryServer implements RemoteRepository {
     public RemoteStorageTransport storageFor(StorableTypeTransport transport)
         throws RepositoryException
     {
+        int protocolVersion = transport.getProtocolVersion();
         Class storableType = transport.getStorableType();
         Layout clientLayout = transport.getLayout();
         StorableLayoutKey key = new StorableLayoutKey(storableType, clientLayout);
@@ -84,13 +85,15 @@ public class RemoteRepositoryServer implements RemoteRepository {
                 Storage storage = mRepository.storageFor(storableType);
                 StorableWriter writer =
                     ReconstructedCache.THE.writerFor(storableType, clientLayout);
-                remoteStorage = new RemoteStorageServer(storage, writer);
+                boolean writeStartMarker = protocolVersion >= 1;
+                remoteStorage = new RemoteStorageServer(storage, writer, writeStartMarker);
                 mStorageMap.put(key, remoteStorage);
             }
         }
 
         Layout localLayout = ReconstructedCache.THE.layoutFor(storableType);
-        return new RemoteStorageTransport(storableType, localLayout, remoteStorage);
+        return new RemoteStorageTransport
+            (protocolVersion, storableType, localLayout, remoteStorage);
     }
 
     public Pipe storageRequest(StorageResponse response, Pipe pipe) {

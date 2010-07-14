@@ -223,7 +223,7 @@ public class RemoteTest {
     }
 
     @Test
-    public void querriesTest() throws Exception { 
+    public void queriesTest() throws Exception { 
         Repository repo = com.amazon.carbonado.repo.map.MapRepositoryBuilder.newRepository();
         Session[] pair = new Environment().newSessionPair();
         pair[0].send(RemoteRepositoryServer.from(repo));
@@ -241,21 +241,6 @@ public class RemoteTest {
             stb.tryInsert();
         }
 
-
-    }
-
-    @Test
-    public void sequenceGeneratorTest() { 
-
-    }
-
-    @Test
-    public void exceptionTest() {
-
-    }
-
-    @Test
-    public void threadTest() {
 
     }
 

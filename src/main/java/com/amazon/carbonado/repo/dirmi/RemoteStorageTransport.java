@@ -28,10 +28,19 @@ import com.amazon.carbonado.layout.Layout;
  * @author Brian S O'Neill
  */
 public class RemoteStorageTransport extends StorableTypeTransport {
+    private static final long serialVersionUID = -9036404401842368208L;
+
     private final RemoteStorage mStorage;
 
     RemoteStorageTransport(Class<? extends Storable> type, Layout layout, RemoteStorage storage) {
         super(type, layout);
+        mStorage = storage;
+    }
+
+    RemoteStorageTransport(int protocolVersion,
+                           Class<? extends Storable> type, Layout layout, RemoteStorage storage)
+    {
+        super(protocolVersion, type, layout);
         mStorage = storage;
     }
 
