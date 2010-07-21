@@ -71,7 +71,7 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     private final ClientQueryFactory<S> mQueryFactory;
     private final boolean mReadStartMarker;
 
-    private volatile StorageProxy mStorageProxy;
+    private volatile StorageProxy<S> mStorageProxy;
 
     ClientStorage(Class<S> type, ClientRepository repo, RemoteStorageTransport transport)
         throws SupportException, RepositoryException
