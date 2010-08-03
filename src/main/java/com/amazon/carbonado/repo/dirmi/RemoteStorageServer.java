@@ -137,7 +137,7 @@ class RemoteStorageServer implements RemoteStorage {
                 pipe.writeThrowable(null);
                 
                 if (inserted) {
-                    // FIXME: As an optimization, pass nothing back if unchanged
+                    // TODO: As an optimization, pass nothing back if unchanged
                     pipe.write(STORABLE_CHANGED);
                     mWriter.writeInsertResponse(s, pipe.getOutputStream());
                 } else {
@@ -184,7 +184,7 @@ class RemoteStorageServer implements RemoteStorage {
                 pipe.writeThrowable(null);
                 
                 if (updated) {
-                    // FIXME: As an optimization, pass nothing back if unchanged
+                    // TODO: As an optimization, pass nothing back if unchanged
                     pipe.write(STORABLE_CHANGED);
                     mWriter.writeUpdateResponse(s, pipe.getOutputStream());
                 } else {
@@ -248,7 +248,7 @@ class RemoteStorageServer implements RemoteStorage {
     }
 
     public long queryCount(FilterValues fv, RemoteTransaction txn) throws FetchException {
-        attach(txn);
+        attachFetch(txn);
         try {
             return buildQuery(fv, null).count();
         } finally {
@@ -258,16 +258,14 @@ class RemoteStorageServer implements RemoteStorage {
 
     public Pipe queryFetch(FilterValues fv, OrderingList orderBy, Long from, Long to,
                            RemoteTransaction txn, Pipe pipe)
-        throws FetchException
     {
-
         try {
             OutputStream out = pipe.getOutputStream();
             try {
                 Query query = buildQuery(fv, orderBy);
                 Cursor cursor;
 
-                attach(txn);
+                attachFetch(txn);
                 try {
                     if (from == null) {
                         if (to == null) {
@@ -306,7 +304,7 @@ class RemoteStorageServer implements RemoteStorage {
                 pipe.writeThrowable(e);
             }
         } catch (IOException e) {
-            throw new FetchException(e);
+            // Ignore.
         } finally {
             try {
                 pipe.close();
@@ -319,7 +317,7 @@ class RemoteStorageServer implements RemoteStorage {
 
     public Pipe queryLoadOne(FilterValues fv, RemoteTransaction txn, Pipe pipe) {
         try {
-            if (attachFetch(txn,pipe)) {
+            if (attachFetch(txn, pipe)) {
                 Storable s;
                 try {
                     s = buildQuery(fv, null).loadOne();
@@ -390,7 +388,7 @@ class RemoteStorageServer implements RemoteStorage {
     public void queryDeleteOne(FilterValues fv, RemoteTransaction txn)
         throws FetchException, PersistException
     {
-        attach(txn);
+        attachPersist(txn);
         try {
             Query query = buildQuery(fv, null);
             query.deleteOne();
@@ -402,7 +400,7 @@ class RemoteStorageServer implements RemoteStorage {
     public boolean queryTryDeleteOne(FilterValues fv, RemoteTransaction txn)
         throws FetchException, PersistException
     {
-        attach(txn);
+        attachPersist(txn);
         try {
             Query query = buildQuery(fv, null);
             return query.tryDeleteOne();
@@ -414,7 +412,7 @@ class RemoteStorageServer implements RemoteStorage {
     public void queryDeleteAll(FilterValues fv, RemoteTransaction txn)
         throws FetchException, PersistException
     {
-        attach(txn);
+        attachPersist(txn);
         try {
             buildQuery(fv, null).deleteAll();
         } finally {
@@ -453,7 +451,7 @@ class RemoteStorageServer implements RemoteStorage {
     }
 
     public void truncate(RemoteTransaction txn) throws PersistException {
-        attach(txn);
+        attachPersist(txn);
         try {
             mStorage.truncate();
         } finally {
@@ -475,22 +473,13 @@ class RemoteStorageServer implements RemoteStorage {
         return supported;
     }
 
-    private void attach(RemoteTransaction txn) {
+    private void attachFetch(RemoteTransaction txn) throws FetchException {
         if (txn != null) {
-            ((RemoteTransactionServer) txn).attach();
-        }
-    }
-
-    /**
-     * An detach does not need to check for a ClassCastException because the same
-     * transaction is being operated opon. The check that the transaction is still
-     * of the form of RemoteTransactionServer was already taken place in the attach
-     * method so since the same transaction is operated upon, the exception cannot be
-     * thrown. 
-     */
-    private void detach(RemoteTransaction txn) {
-        if (txn != null) {
-            ((RemoteTransactionServer) txn).detach();
+            try {
+                ((RemoteTransactionServer) txn).attach();
+            } catch (ClassCastException e) {
+                throw new FetchException("Transaction is invalid due to reconnect");
+            }
         }
     }
 
@@ -504,20 +493,27 @@ class RemoteStorageServer implements RemoteStorage {
      * @returns true if attach succeeded, false if exception was written to pipe.
      */
     private boolean attachFetch(RemoteTransaction txn, Pipe pipe) {
+        try {
+            attachFetch(txn);
+        } catch (FetchException e) {
+            try {
+                pipe.writeThrowable(e);
+            } catch (IOException e2) {
+                // Ignore.
+            }
+            return false;
+        }
+        return true;
+    }
+
+    private void attachPersist(RemoteTransaction txn) throws PersistException {
         if (txn != null) {
             try {
                 ((RemoteTransactionServer) txn).attach();
             } catch (ClassCastException e) {
-                try {
-                    pipe.writeThrowable
-                        (new FetchException("Transaction is invalid due to a reconnect"));
-                } catch (IOException i) {
-                    // Ignore
-                }
-                return false;
+                throw new PersistException("Transaction is invalid due to reconnect");
             }
         }
-        return true;
     }
 
     /**
@@ -530,20 +526,30 @@ class RemoteStorageServer implements RemoteStorage {
      * @returns true if attach succeeded, false if exception was written to pipe.
      */
     private boolean attachPersist(RemoteTransaction txn, Pipe pipe) {
-        if (txn != null) {
+        try {
+            attachPersist(txn);
+        } catch (PersistException e) {
             try {
-                ((RemoteTransactionServer) txn).attach();
-            } catch (ClassCastException e) {
-                try {
-                    pipe.writeThrowable
-                        (new PersistException("Transaction is invalid due to a reconnect"));
-                } catch (IOException i) {
-                    // Ignore
-                }
-                return false;
+                pipe.writeThrowable(e);
+            } catch (IOException e2) {
+                // Ignore.
             }
+            return false;
         }
         return true;
+    }
+
+    /**
+     * Detach does not need to check for a ClassCastException because the same
+     * transaction is being operated upon. The check that the transaction is
+     * still of the form of RemoteTransactionServer was already taken place in
+     * the attach method so since the same transaction is operated upon, the
+     * exception cannot be thrown.
+     */
+    private void detach(RemoteTransaction txn) {
+        if (txn != null) {
+            ((RemoteTransactionServer) txn).detach();
+        }
     }
 
     private Query buildQuery(FilterValues fv, OrderingList orderBy) throws FetchException {
@@ -562,5 +568,9 @@ class RemoteStorageServer implements RemoteStorage {
             query = query.orderBy(orderByNames);
         }
         return query;
+    }
+
+    StorableWriter storableWriter() {
+        return mWriter;
     }
 }

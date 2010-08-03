@@ -58,7 +58,7 @@ public class RemoteRepositoryServer implements RemoteRepository {
         return new RemoteRepositoryServer(repo);
     }
 
-    private final Repository mRepository;
+    final Repository mRepository;
     private Map<StorableLayoutKey, RemoteStorage> mStorageMap;
 
     private RemoteRepositoryServer(Repository repo) {
@@ -179,23 +179,27 @@ public class RemoteRepositoryServer implements RemoteRepository {
             .wrap(producer);
     }
 
-    private boolean attach(RemoteTransaction parent) {
-        if (parent != null) {
+    public RemoteProcedureExecutor newRemoteProcedureExecutor(RemoteStorageRequestor r) {
+        return new RemoteProcedureExecutorServer(this, r);
+    }
+
+    boolean attach(RemoteTransaction txn) {
+        if (txn != null) {
             try {
-                ((RemoteTransactionServer) parent).attach();
+                ((RemoteTransactionServer) txn).attach();
             } catch (ClassCastException e) {
-                // This means that the parent transaction has been disconnected
-                // and this transaction has nothing to attach to. The client
-                // needs to be notified that it has an invalid transaction.
+                // This means that the transaction has been disconnected. The
+                // client needs to be notified that it has an invalid
+                // transaction.
                 return false;
             }
         }
         return true;
     }
 
-    private void detach(RemoteTransaction parent) {
-        if (parent != null) {
-            ((RemoteTransactionServer) parent).detach();
+    void detach(RemoteTransaction txn) {
+        if (txn != null) {
+            ((RemoteTransactionServer) txn).detach();
         }
     }
 }

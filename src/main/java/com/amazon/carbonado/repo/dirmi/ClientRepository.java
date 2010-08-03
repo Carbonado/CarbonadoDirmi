@@ -36,6 +36,9 @@ import com.amazon.carbonado.Storable;
 import com.amazon.carbonado.Storage;
 import com.amazon.carbonado.SupportException;
 
+import com.amazon.carbonado.capability.RemoteProcedure;
+import com.amazon.carbonado.capability.RemoteProcedureCapability;
+
 import com.amazon.carbonado.layout.Layout;
 
 import com.amazon.carbonado.sequence.SequenceValueProducer;
@@ -56,7 +59,9 @@ import com.amazon.carbonado.txn.TransactionScope;
  * @author Brian S O'Neill
  * @author Olga Kuznetsova
  */
-public class ClientRepository extends AbstractRepository<RemoteTransaction> {
+public class ClientRepository extends AbstractRepository<RemoteTransaction>
+    implements RemoteProcedureCapability
+{
     /**
      * Returns client access to a remote repository server.
      *
@@ -109,6 +114,8 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction> {
     private final TransactionManager<RemoteTransaction> mTxnMgr;
     private final ConcurrentHashMap<String, String> mSequenceNames;
 
+    private volatile RemoteProcedureExecutor mProcedureExecutor;
+
     RemoteRepository getRemoteRepository() {
         return mRepository;
     }
@@ -118,6 +125,45 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction> {
         mRepository = remote;
         mSequenceNames = new ConcurrentHashMap<String, String>();
         mTxnMgr = new ClientTransactionManager(this);
+    }
+
+    @Override
+    public <R, D> RemoteProcedure.Call<R, D> beginCall(RemoteProcedure<R, D> proc)
+        throws RepositoryException
+    {
+        if (proc == null) {
+            throw new IllegalArgumentException("RemoteProcedure cannot be null");
+        }
+
+        RemoteProcedureExecutor executor = mProcedureExecutor;
+        if (executor == null) {
+            synchronized (this) {
+                executor = mProcedureExecutor;
+                if (executor == null) {
+                    RemoteStorageRequestor requestor = new RemoteStorageRequestor() {
+                        public RemoteStorage serverStorageFor(Class<? extends Storable> type)
+                            throws RepositoryException
+                        {
+                            return ((ClientStorage) storageFor(type)).remoteStorage();
+                        }
+                    };
+                    executor = mRepository.newRemoteProcedureExecutor(requestor);
+                    mProcedureExecutor = executor;
+                }
+            }
+        }
+
+        RemoteTransaction txn;
+        try {
+            txn = localTransactionScope().getTxn();
+        } catch (Exception e) {
+            if (e instanceof RepositoryException) {
+                throw (RepositoryException) e;
+            }
+            throw new RepositoryException(e);
+        }
+
+        return new ProcedureCall<R, D>(this, executor.remoteCall(txn, proc, null), txn != null);
     }
 
     @Override

@@ -334,13 +334,23 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
                 // Block until server has created it's cursor against the
                 // transaction we just passed to it.
                 if (mReadStartMarker) {
-                    if (pipe.readByte() != RemoteStorageServer.CURSOR_START) {
+                    byte op = pipe.readByte();
+                    if (op != RemoteStorageServer.CURSOR_START) {
+                        Throwable t;
+                        if (op == RemoteStorageServer.CURSOR_EXCEPTION) {
+                            t = pipe.readThrowable();
+                        } else {
+                            t = null;
+                        }
                         try {
                             cursor.close();
                         } catch (FetchException e) {
                             // Ignore.
                         }
-                        throw new FetchException("Cursor protocol error");
+                        if (t != null) {
+                            throw t;
+                        }
+                        throw new FetchException("Cursor protocol error: " + op);
                     }
                 } else {
                     // Fallback to potentially slower method.
@@ -352,7 +362,9 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             throw e;
         } catch (RuntimeException e) {
             throw e;
-        } catch (Exception e) {
+        } catch (Error e) {
+            throw e;
+        } catch (Throwable e) {
             throw new FetchException(e);
         }
     }
@@ -467,8 +479,12 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
         return mStorageProxy.mStorage.queryPrintPlan(fv, orderBy, indentLevel);
     }
 
-    public static interface InstanceFactory {
-        Storable instantiate(DelegateSupport support);
+    RemoteStorage remoteStorage() {
+        return mStorageProxy.mStorage;
+    }
+
+    StorableWriter<S> storableWriter() {
+        return mStorageProxy.mWriter;
     }
 
     void reconnect(RemoteStorageTransport transport) throws RepositoryException {
@@ -495,6 +511,10 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
         }
 
         mStorageProxy = new StorageProxy<S>(storage, writer, supported);
+    }
+
+    public static interface InstanceFactory {
+        Storable instantiate(DelegateSupport support);
     }
 
     // Allows several objects to be swapped-in atomically.

@@ -21,6 +21,7 @@ package com.amazon.carbonado;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
 
+import java.util.List;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -33,15 +34,25 @@ import com.amazon.carbonado.repo.dirmi.*;
 import org.cojen.dirmi.Environment;
 import org.cojen.dirmi.Session;
 
+import com.amazon.carbonado.*;
+
+import com.amazon.carbonado.capability.RemoteProcedure;
+import com.amazon.carbonado.capability.RemoteProcedureCapability;
+
+import com.amazon.carbonado.repo.map.MapRepositoryBuilder;
+
 import com.amazon.carbonado.sequence.SequenceCapability;
 import com.amazon.carbonado.sequence.SequenceValueProducer;
+
+import com.amazon.carbonado.synthetic.SyntheticStorableBuilder;
+
 import com.amazon.carbonado.stored.StorableTestVersioned;
-import com.amazon.carbonado.*;
 
 /**
  * 
  *
  * @author Olga Kuznetsova
+ * @author Brian S O'Neill
  */
 public class RemoteTest {
     public static void main(String[] args) {
@@ -58,7 +69,7 @@ public class RemoteTest {
     @Test
     public void mapRepoInsertTest() {
         try{
-            Repository repo = com.amazon.carbonado.repo.map.MapRepositoryBuilder.newRepository();
+            Repository repo = MapRepositoryBuilder.newRepository();
             
             Session[] pair = new Environment().newSessionPair();
             pair[0].send(RemoteRepositoryServer.from(repo));
@@ -81,7 +92,8 @@ public class RemoteTest {
                 stb.tryInsert();
             }
             
-            Storage <StorableTestVersioned> clientstorage = clientRepo.storageFor(StorableTestVersioned.class);
+            Storage <StorableTestVersioned> clientstorage =
+                clientRepo.storageFor(StorableTestVersioned.class);
             assertTrue(!(repo.equals(clientRepo)));
             StorableTestVersioned stb1 = clientstorage.prepare();
             stb1.setId(2);
@@ -124,7 +136,7 @@ public class RemoteTest {
 
     @Test
     public void anotherTest() throws Exception {
-        Repository repo = com.amazon.carbonado.repo.map.MapRepositoryBuilder.newRepository();
+        Repository repo = MapRepositoryBuilder.newRepository();
             
         Session[] pair = new Environment().newSessionPair();
         pair[0].send(RemoteRepositoryServer.from(repo));
@@ -133,13 +145,14 @@ public class RemoteTest {
 
     @Test
     public void transactionsTest() throws Exception {
-        Repository repo = com.amazon.carbonado.repo.map.MapRepositoryBuilder.newRepository();
+        Repository repo = MapRepositoryBuilder.newRepository();
         Session[] pair = new Environment().newSessionPair();
         pair[0].send(RemoteRepositoryServer.from(repo));
         RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
         final Repository clientRepo = ClientRepository.from(remoteRepo);
 
-        final Storage<StorableTestVersioned> clientStorage = clientRepo.storageFor(StorableTestVersioned.class);
+        final Storage<StorableTestVersioned> clientStorage =
+            clientRepo.storageFor(StorableTestVersioned.class);
         StorableTestVersioned stb = clientStorage.prepare();
         stb.setId(2);
         stb.setStringProp("world");
@@ -185,13 +198,14 @@ public class RemoteTest {
 
     @Test
     public void transactionsAttachDetachTest() throws Exception {
-        Repository repo = com.amazon.carbonado.repo.map.MapRepositoryBuilder.newRepository();
+        Repository repo = MapRepositoryBuilder.newRepository();
         Session[] pair = new Environment().newSessionPair();
         pair[0].send(RemoteRepositoryServer.from(repo));
         RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
         final Repository clientRepo = ClientRepository.from(remoteRepo);
 
-        final Storage<StorableTestVersioned> clientStorage = clientRepo.storageFor(StorableTestVersioned.class);
+        final Storage<StorableTestVersioned> clientStorage =
+            clientRepo.storageFor(StorableTestVersioned.class);
         StorableTestVersioned stb = clientStorage.prepare();
         stb.setId(2);
         stb.setStringProp("world");
@@ -207,7 +221,7 @@ public class RemoteTest {
                 final Transaction txn1 = clientRepo.enterTransaction();
                 Thread otherThread = new Thread() {
                     public void run() {
-                        //      txn.attach();
+                        txn.attach();
                     }
                 };
         
@@ -224,13 +238,14 @@ public class RemoteTest {
 
     @Test
     public void queriesTest() throws Exception { 
-        Repository repo = com.amazon.carbonado.repo.map.MapRepositoryBuilder.newRepository();
+        Repository repo = MapRepositoryBuilder.newRepository();
         Session[] pair = new Environment().newSessionPair();
         pair[0].send(RemoteRepositoryServer.from(repo));
         RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
         Repository clientRepo = ClientRepository.from(remoteRepo);
 
-        Storage<StorableTestVersioned> clientStorage = clientRepo.storageFor(StorableTestVersioned.class);
+        Storage<StorableTestVersioned> clientStorage =
+            clientRepo.storageFor(StorableTestVersioned.class);
         StorableTestVersioned stb = clientStorage.prepare();
         stb.setId(2);
         if (!stb.tryLoad()) {
@@ -246,13 +261,14 @@ public class RemoteTest {
 
     @Test
     public void closingTest() throws Exception {
-        Repository repo = com.amazon.carbonado.repo.map.MapRepositoryBuilder.newRepository();
+        Repository repo = MapRepositoryBuilder.newRepository();
         Session[] pair = new Environment().newSessionPair();
         pair[0].send(RemoteRepositoryServer.from(repo));
         RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
         Repository clientRepo = ClientRepository.from(remoteRepo);
 
-        Storage<StorableTestVersioned> clientStorage = clientRepo.storageFor(StorableTestVersioned.class);
+        Storage<StorableTestVersioned> clientStorage =
+            clientRepo.storageFor(StorableTestVersioned.class);
         StorableTestVersioned stb = clientStorage.prepare();
         stb.setId(2);
         if (!stb.tryLoad()) {
@@ -265,7 +281,8 @@ public class RemoteTest {
 
         clientRepo.close();
 
-        Storage<StorableTestVersioned> actualStorage = repo.storageFor(StorableTestVersioned.class);
+        Storage<StorableTestVersioned> actualStorage =
+            repo.storageFor(StorableTestVersioned.class);
         StorableTestVersioned stb1 = actualStorage.prepare();
         stb1.setId(3);
         boolean caught = false;
@@ -281,23 +298,16 @@ public class RemoteTest {
     public void reconnectStressTest() throws Exception {
         Set<Repository> repos = new HashSet<Repository>();
         for (int i = 0; i < 10; ++i) {
-            Repository repo = com.amazon.carbonado.repo.map.MapRepositoryBuilder.newRepository();
+            Repository repo = MapRepositoryBuilder.newRepository();
             repos.add(repo);
             Session[] pair = new Environment().newSessionPair();
             pair[0].send(RemoteRepositoryServer.from(repo));
             RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
             Repository clientRepo = ClientRepository.from(remoteRepo);
-            Storage<StorableTestVersioned> storage = clientRepo.storageFor(StorableTestVersioned.class);
+            Storage<StorableTestVersioned> storage =
+                clientRepo.storageFor(StorableTestVersioned.class);
             StorableTestVersioned stb;
-            for (int j = 0; j < 20; ++j) {
-                stb = storage.prepare();
-                stb.setId(j);
-                stb.setStringProp(j + "world");
-                stb.setIntProp(321);
-                stb.setLongProp(313244232323432L);
-                stb.setDoubleProp(1.423423);
-                stb.insert();
-            }
+            fill(storage);
 
             SequenceCapability capability = clientRepo.getCapability(SequenceCapability.class);
             assertNotNull(capability);
@@ -315,7 +325,8 @@ public class RemoteTest {
             RemoteRepository remoteRepo1 = (RemoteRepository) pair1[1].receive();
             ((ClientRepository)clientRepo).reconnect(remoteRepo1);
 
-            Storage<StorableTestVersioned> storage1 = clientRepo.storageFor(StorableTestVersioned.class);;
+            Storage<StorableTestVersioned> storage1 =
+                clientRepo.storageFor(StorableTestVersioned.class);;
             assertNotNull(storage1);
             stb = storage.prepare();
             stb.setId(1);
@@ -329,22 +340,15 @@ public class RemoteTest {
 
     @Test
     public void reconnectTransactionUpdateTest() throws Exception {
-        Repository repo = com.amazon.carbonado.repo.map.MapRepositoryBuilder.newRepository();
+        Repository repo = MapRepositoryBuilder.newRepository();
         Session[] pair = new Environment().newSessionPair();
         pair[0].send(RemoteRepositoryServer.from(repo));
         RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
         Repository clientRepo = ClientRepository.from(remoteRepo);
-        Storage<StorableTestVersioned> storage = clientRepo.storageFor(StorableTestVersioned.class);
+        Storage<StorableTestVersioned> storage =
+            clientRepo.storageFor(StorableTestVersioned.class);
         StorableTestVersioned stb;
-        for (int j = 0; j < 20; ++j) {
-            stb = storage.prepare();
-            stb.setId(j);
-            stb.setStringProp(j + "world");
-            stb.setIntProp(321);
-            stb.setLongProp(313244232323432L);
-            stb.setDoubleProp(1.423423);
-            stb.insert();
-        }
+        fill(storage);
 
         Transaction txn = clientRepo.enterTransaction();
         try {
@@ -387,22 +391,15 @@ public class RemoteTest {
 
     @Test
     public void reconnectTransactionInsertTest() throws Exception {
-        Repository repo = com.amazon.carbonado.repo.map.MapRepositoryBuilder.newRepository();
+        Repository repo = MapRepositoryBuilder.newRepository();
         Session[] pair = new Environment().newSessionPair();
         pair[0].send(RemoteRepositoryServer.from(repo));
         RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
         Repository clientRepo = ClientRepository.from(remoteRepo);
-        Storage<StorableTestVersioned> storage = clientRepo.storageFor(StorableTestVersioned.class);
+        Storage<StorableTestVersioned> storage =
+            clientRepo.storageFor(StorableTestVersioned.class);
         StorableTestVersioned stb;
-        for (int j = 0; j < 20; ++j) {
-            stb = storage.prepare();
-            stb.setId(j);
-            stb.setStringProp(j + "world");
-            stb.setIntProp(321);
-            stb.setLongProp(313244232323432L);
-            stb.setDoubleProp(1.423423);
-            stb.insert();
-        }
+        fill(storage);
 
         Transaction txn = clientRepo.enterTransaction();
         try {
@@ -442,25 +439,17 @@ public class RemoteTest {
         }
     }
 
-
     @Test
     public void reconnectTransactionLoadTest() throws Exception {
-        Repository repo = com.amazon.carbonado.repo.map.MapRepositoryBuilder.newRepository();
+        Repository repo = MapRepositoryBuilder.newRepository();
         Session[] pair = new Environment().newSessionPair();
         pair[0].send(RemoteRepositoryServer.from(repo));
         RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
         Repository clientRepo = ClientRepository.from(remoteRepo);
-        Storage<StorableTestVersioned> storage = clientRepo.storageFor(StorableTestVersioned.class);
+        Storage<StorableTestVersioned> storage =
+            clientRepo.storageFor(StorableTestVersioned.class);
         StorableTestVersioned stb;
-        for (int j = 0; j < 20; ++j) {
-            stb = storage.prepare();
-            stb.setId(j);
-            stb.setStringProp(j + "world");
-            stb.setIntProp(321);
-            stb.setLongProp(313244232323432L);
-            stb.setDoubleProp(1.423423);
-            stb.insert();
-        }
+        fill(storage);
 
         Transaction txn = clientRepo.enterTransaction();
         try {
@@ -497,22 +486,15 @@ public class RemoteTest {
 
     @Test
     public void reconnectTransactionDeleteTest() throws Exception {
-        Repository repo = com.amazon.carbonado.repo.map.MapRepositoryBuilder.newRepository();
+        Repository repo = MapRepositoryBuilder.newRepository();
         Session[] pair = new Environment().newSessionPair();
         pair[0].send(RemoteRepositoryServer.from(repo));
         RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
         Repository clientRepo = ClientRepository.from(remoteRepo);
-        Storage<StorableTestVersioned> storage = clientRepo.storageFor(StorableTestVersioned.class);
+        Storage<StorableTestVersioned> storage =
+            clientRepo.storageFor(StorableTestVersioned.class);
         StorableTestVersioned stb;
-        for (int j = 0; j < 20; ++j) {
-            stb = storage.prepare();
-            stb.setId(j);
-            stb.setStringProp(j + "world");
-            stb.setIntProp(321);
-            stb.setLongProp(313244232323432L);
-            stb.setDoubleProp(1.423423);
-            stb.insert();
-        }
+        fill(storage);
 
         Transaction txn = clientRepo.enterTransaction();
         try {
@@ -544,22 +526,15 @@ public class RemoteTest {
 
     @Test
     public void reconnectTransactionNestedTest() throws Exception {
-        Repository repo = com.amazon.carbonado.repo.map.MapRepositoryBuilder.newRepository();
+        Repository repo = MapRepositoryBuilder.newRepository();
         Session[] pair = new Environment().newSessionPair();
         pair[0].send(RemoteRepositoryServer.from(repo));
         RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
         Repository clientRepo = ClientRepository.from(remoteRepo);
-        Storage<StorableTestVersioned> storage = clientRepo.storageFor(StorableTestVersioned.class);
+        Storage<StorableTestVersioned> storage =
+            clientRepo.storageFor(StorableTestVersioned.class);
         StorableTestVersioned stb;
-        for (int j = 0; j < 20; ++j) {
-            stb = storage.prepare();
-            stb.setId(j);
-            stb.setStringProp(j + "world");
-            stb.setIntProp(321);
-            stb.setLongProp(313244232323432L);
-            stb.setDoubleProp(1.423423);
-            stb.insert();
-        }
+        fill(storage);
 
         Transaction txn = clientRepo.enterTransaction();
         try {
@@ -598,6 +573,711 @@ public class RemoteTest {
             } catch (Exception e) {
                 // expected
             }
+        }
+    }
+
+    @Test
+    public void reconnectTransactionQueryTest() throws Exception {
+        Repository repo = MapRepositoryBuilder.newRepository();
+        Session[] pair = new Environment().newSessionPair();
+        pair[0].send(RemoteRepositoryServer.from(repo));
+        RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+        Repository clientRepo = ClientRepository.from(remoteRepo);
+        Storage<StorableTestVersioned> storage =
+            clientRepo.storageFor(StorableTestVersioned.class);
+        StorableTestVersioned stb;
+        fill(storage);
+
+        Transaction txn = clientRepo.enterTransaction();
+        try {
+            stb = storage.prepare();
+            stb.setId(33);
+            stb.setStringProp(33 + "world");
+            stb.setIntProp(321);
+            stb.setLongProp(313244232323432L);
+            stb.setDoubleProp(1.423423);
+            stb.insert();
+            pair[0].close();
+            Session[] pair1 = new Environment().newSessionPair();
+            pair1[0].send(RemoteRepositoryServer.from(repo));
+            RemoteRepository remoteRepo1 = (RemoteRepository) pair1[1].receive();
+            ((ClientRepository)clientRepo).reconnect(remoteRepo1);
+            try {
+                storage.query().fetch().toList();
+                fail();
+            } catch (FetchException e) {
+                //expected
+            }
+            try {
+                txn.commit();
+                fail();
+            } catch (PersistException e) {
+                //expected
+            }
+        } finally {
+            txn.exit();
+        }
+    }
+
+    @Test
+    public void reconnectTransactionQueryCount() throws Exception {
+        Repository repo = MapRepositoryBuilder.newRepository();
+        Session[] pair = new Environment().newSessionPair();
+        pair[0].send(RemoteRepositoryServer.from(repo));
+        RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+        Repository clientRepo = ClientRepository.from(remoteRepo);
+        Storage<StorableTestVersioned> storage =
+            clientRepo.storageFor(StorableTestVersioned.class);
+        StorableTestVersioned stb;
+        fill(storage);
+
+        Transaction txn = clientRepo.enterTransaction();
+        try {
+            stb = storage.prepare();
+            stb.setId(33);
+            stb.setStringProp(33 + "world");
+            stb.setIntProp(321);
+            stb.setLongProp(313244232323432L);
+            stb.setDoubleProp(1.423423);
+            stb.insert();
+            pair[0].close();
+            Session[] pair1 = new Environment().newSessionPair();
+            pair1[0].send(RemoteRepositoryServer.from(repo));
+            RemoteRepository remoteRepo1 = (RemoteRepository) pair1[1].receive();
+            ((ClientRepository)clientRepo).reconnect(remoteRepo1);
+            try {
+                storage.query().count();
+                fail();
+            } catch (FetchException e) {
+                //expected
+            }
+            try {
+                txn.commit();
+                fail();
+            } catch (PersistException e) {
+                //expected
+            }
+        } finally {
+            txn.exit();
+        }
+    }
+
+    @Test
+    public void reconnectTransactionDeleteOne() throws Exception {
+        Repository repo = MapRepositoryBuilder.newRepository();
+        Session[] pair = new Environment().newSessionPair();
+        pair[0].send(RemoteRepositoryServer.from(repo));
+        RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+        Repository clientRepo = ClientRepository.from(remoteRepo);
+        Storage<StorableTestVersioned> storage =
+            clientRepo.storageFor(StorableTestVersioned.class);
+        StorableTestVersioned stb;
+        fill(storage);
+
+        Transaction txn = clientRepo.enterTransaction();
+        try {
+            stb = storage.prepare();
+            stb.setId(33);
+            stb.setStringProp(33 + "world");
+            stb.setIntProp(321);
+            stb.setLongProp(313244232323432L);
+            stb.setDoubleProp(1.423423);
+            stb.insert();
+            pair[0].close();
+            Session[] pair1 = new Environment().newSessionPair();
+            pair1[0].send(RemoteRepositoryServer.from(repo));
+            RemoteRepository remoteRepo1 = (RemoteRepository) pair1[1].receive();
+            ((ClientRepository)clientRepo).reconnect(remoteRepo1);
+            try {
+                storage.query("id = ?").with(0).deleteOne();
+                fail();
+            } catch (PersistException e) {
+                //expected
+            }
+            try {
+                txn.commit();
+                fail();
+            } catch (PersistException e) {
+                //expected
+            }
+        } finally {
+            txn.exit();
+        }
+    }
+
+    @Test
+    public void reconnectTransactionTryDeleteOne() throws Exception {
+        Repository repo = MapRepositoryBuilder.newRepository();
+        Session[] pair = new Environment().newSessionPair();
+        pair[0].send(RemoteRepositoryServer.from(repo));
+        RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+        Repository clientRepo = ClientRepository.from(remoteRepo);
+        Storage<StorableTestVersioned> storage =
+            clientRepo.storageFor(StorableTestVersioned.class);
+        StorableTestVersioned stb;
+        fill(storage);
+
+        Transaction txn = clientRepo.enterTransaction();
+        try {
+            stb = storage.prepare();
+            stb.setId(33);
+            stb.setStringProp(33 + "world");
+            stb.setIntProp(321);
+            stb.setLongProp(313244232323432L);
+            stb.setDoubleProp(1.423423);
+            stb.insert();
+            pair[0].close();
+            Session[] pair1 = new Environment().newSessionPair();
+            pair1[0].send(RemoteRepositoryServer.from(repo));
+            RemoteRepository remoteRepo1 = (RemoteRepository) pair1[1].receive();
+            ((ClientRepository)clientRepo).reconnect(remoteRepo1);
+            try {
+                storage.query("id = ?").with(0).tryDeleteOne();
+                fail();
+            } catch (PersistException e) {
+                //expected
+            }
+            try {
+                txn.commit();
+                fail();
+            } catch (PersistException e) {
+                //expected
+            }
+        } finally {
+            txn.exit();
+        }
+    }
+
+    @Test
+    public void reconnectTransactionDeleteAll() throws Exception {
+        Repository repo = MapRepositoryBuilder.newRepository();
+        Session[] pair = new Environment().newSessionPair();
+        pair[0].send(RemoteRepositoryServer.from(repo));
+        RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+        Repository clientRepo = ClientRepository.from(remoteRepo);
+        Storage<StorableTestVersioned> storage =
+            clientRepo.storageFor(StorableTestVersioned.class);
+        StorableTestVersioned stb;
+        fill(storage);
+
+        Transaction txn = clientRepo.enterTransaction();
+        try {
+            stb = storage.prepare();
+            stb.setId(33);
+            stb.setStringProp(33 + "world");
+            stb.setIntProp(321);
+            stb.setLongProp(313244232323432L);
+            stb.setDoubleProp(1.423423);
+            stb.insert();
+            pair[0].close();
+            Session[] pair1 = new Environment().newSessionPair();
+            pair1[0].send(RemoteRepositoryServer.from(repo));
+            RemoteRepository remoteRepo1 = (RemoteRepository) pair1[1].receive();
+            ((ClientRepository)clientRepo).reconnect(remoteRepo1);
+            try {
+                storage.query().deleteAll();
+                fail();
+            } catch (PersistException e) {
+                //expected
+            }
+            try {
+                txn.commit();
+                fail();
+            } catch (PersistException e) {
+                //expected
+            }
+        } finally {
+            txn.exit();
+        }
+    }
+
+    @Test
+    public void reconnectTransactionTruncate() throws Exception {
+        Repository repo = MapRepositoryBuilder.newRepository();
+        Session[] pair = new Environment().newSessionPair();
+        pair[0].send(RemoteRepositoryServer.from(repo));
+        RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+        Repository clientRepo = ClientRepository.from(remoteRepo);
+        Storage<StorableTestVersioned> storage =
+            clientRepo.storageFor(StorableTestVersioned.class);
+        StorableTestVersioned stb;
+        fill(storage);
+
+        Transaction txn = clientRepo.enterTransaction();
+        try {
+            stb = storage.prepare();
+            stb.setId(33);
+            stb.setStringProp(33 + "world");
+            stb.setIntProp(321);
+            stb.setLongProp(313244232323432L);
+            stb.setDoubleProp(1.423423);
+            stb.insert();
+            pair[0].close();
+            Session[] pair1 = new Environment().newSessionPair();
+            pair1[0].send(RemoteRepositoryServer.from(repo));
+            RemoteRepository remoteRepo1 = (RemoteRepository) pair1[1].receive();
+            ((ClientRepository)clientRepo).reconnect(remoteRepo1);
+            try {
+                storage.truncate();
+                fail();
+            } catch (PersistException e) {
+                //expected
+            }
+            try {
+                txn.commit();
+                fail();
+            } catch (PersistException e) {
+                //expected
+            }
+        } finally {
+            txn.exit();
+        }
+    }
+
+    @Test
+    public void basicProcedureCall() throws Exception {
+        Repository clientRepo;
+        {
+            Repository repo = MapRepositoryBuilder.newRepository();
+            Session[] pair = new Environment().newSessionPair();
+            pair[0].send(RemoteRepositoryServer.from(repo));
+            RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+            clientRepo = ClientRepository.from(remoteRepo);
+        }
+
+        RemoteProcedureCapability cap = clientRepo.getCapability(RemoteProcedureCapability.class);
+
+        try {
+            cap.beginCall(null);
+            fail();
+        } catch (IllegalArgumentException e) {
+        }
+
+        EchoProc proc = new EchoProc();
+
+        for (int i=1; i<=2; i++) {
+            proc.resetEchoCounts();
+
+            List<String> reply = cap.beginCall(proc).send("hello").fetchReply().toList();
+            assertEquals(1, reply.size());
+            assertEquals("hello!", reply.get(0));
+            if (i == 2) {
+                proc.assertEchoCounts(1, 1);
+            }
+
+            // Again, sending too much. This is an exception.
+            try {
+                reply = cap.beginCall(proc).send("hello2").send("again").fetchReply().toList();
+                fail();
+            } catch (IllegalStateException e) {
+                // Good.
+            }
+            if (i == 2) {
+                proc.assertEchoCounts(2, 1);
+            }
+
+            // Sending too little.
+            reply = cap.beginCall(proc).fetchReply().toList();
+            assertTrue(reply.isEmpty());
+            if (i == 2) {
+                proc.assertEchoCounts(3, 2);
+            }
+
+            // Dropping reply.
+            cap.beginCall(proc).send("hello").execute();
+            if (i == 2) {
+                proc.assertEchoCounts(4, 3);
+            }
+        }
+    }
+
+    @Test
+    public void transactionProcedureCall() throws Exception {
+        Repository clientRepo;
+        {
+            Repository repo = MapRepositoryBuilder.newRepository();
+            Session[] pair = new Environment().newSessionPair();
+            pair[0].send(RemoteRepositoryServer.from(repo));
+            RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+            clientRepo = ClientRepository.from(remoteRepo);
+        }
+
+        RemoteProcedureCapability cap = clientRepo.getCapability(RemoteProcedureCapability.class);
+
+        // First verify that insert works outside explicit transaction.
+        cap.beginCall(new InsertProc(1)).execute();
+
+        Storage<StorableTestVersioned> storage =
+            clientRepo.storageFor(StorableTestVersioned.class);
+
+        StorableTestVersioned stb = storage.prepare();
+        stb.setId(1);
+        stb.load();
+
+        // This should throw an exception back.
+        try {
+            cap.beginCall(new InsertProc(1)).execute();
+            fail();
+        } catch (UniqueConstraintException e) {
+            // Good.
+        }
+
+        Transaction txn = clientRepo.enterTransaction();
+        try {
+            cap.beginCall(new InsertProc(2)).execute();
+            // Confirm visible within local transaction.
+            stb = storage.prepare();
+            stb.setId(2);
+            stb.load();
+            // Don't commit.
+        } finally {
+            txn.exit();
+        }
+
+        // Rolled back.
+        stb = storage.prepare();
+        stb.setId(2);
+        assertFalse(stb.tryLoad());
+
+        txn = clientRepo.enterTransaction();
+        try {
+            cap.beginCall(new InsertProc(2)).execute();
+            // Confirm visible within local transaction.
+            stb = storage.prepare();
+            stb.setId(2);
+            stb.load();
+            txn.commit();
+        } finally {
+            txn.exit();
+        }
+
+        // Committed.
+        stb = storage.prepare();
+        stb.setId(2);
+        stb.load();
+
+        txn = clientRepo.enterTransaction();
+        try {
+            try {
+                // Not allowed within a transaction.
+                cap.beginCall(new InsertProc(3)).executeAsync();
+                fail();
+            } catch (IllegalStateException e) {
+            }
+        } finally {
+            txn.exit();
+        }
+
+        // Allowed outside a transaction.
+        cap.beginCall(new InsertProc(3)).executeAsync();
+    }
+
+    @Test
+    public void remoteProcedureQuery() throws Exception {
+        // Tests that Storables can be serialized from procedure to caller.
+
+        Repository clientRepo;
+        {
+            Repository repo = MapRepositoryBuilder.newRepository();
+            Session[] pair = new Environment().newSessionPair();
+            pair[0].send(RemoteRepositoryServer.from(repo));
+            RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+            clientRepo = ClientRepository.from(remoteRepo);
+        }
+
+        Storage<StorableTestVersioned> storage =
+            clientRepo.storageFor(StorableTestVersioned.class);
+
+        fill(storage);
+
+        RemoteProcedureCapability cap = clientRepo.getCapability(RemoteProcedureCapability.class);
+
+        QueryProc proc = new QueryProc("id >= ? & id < ?", 5, 10);
+        List<StorableTestVersioned> reply = cap.beginCall(proc).fetchReply().toList();
+
+        assertEquals(5, reply.size());
+        for (int i=0; i<5; i++) {
+            assertEquals(i + 5, reply.get(i).getId());
+        }
+    }
+
+    @Test
+    public void remoteProcedureFill() throws Exception {
+        // Tests that Storables can be serialized from caller to procedure.
+
+        Repository clientRepo;
+        {
+            Repository repo = MapRepositoryBuilder.newRepository();
+            Session[] pair = new Environment().newSessionPair();
+            pair[0].send(RemoteRepositoryServer.from(repo));
+            RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+            clientRepo = ClientRepository.from(remoteRepo);
+        }
+
+        Storage<StorableTestVersioned> storage =
+            clientRepo.storageFor(StorableTestVersioned.class);
+
+        RemoteProcedureCapability cap = clientRepo.getCapability(RemoteProcedureCapability.class);
+
+        FillProc proc = new FillProc();
+        RemoteProcedure.Call call = cap.beginCall(proc);
+        for (int i=0; i<20; i++) {
+            StorableTestVersioned stb = storage.prepare();
+            stb.setId(i);
+            stb.setStringProp("hello " + i);
+            stb.setIntProp(321);
+            stb.setLongProp(313244232323432L);
+            stb.setDoubleProp(1.423423);
+            call.send(stb);
+        }
+        call.execute();
+
+        Cursor<StorableTestVersioned> c = storage.query().orderBy("id").fetch();
+        int i = 0;
+        while (c.hasNext()) {
+            StorableTestVersioned stb = c.next();
+            assertEquals(i, stb.getId());
+            assertEquals("hello " + i, stb.getStringProp());
+            i++;
+        }
+    }
+
+    /*
+    @Test
+    public void remoteProcedureQueryDifferentLayout() throws Exception {
+        // Tests that Storables can be serialized from procedure to caller,
+        // where Storable layout version differs.
+
+        Repository clientRepo;
+        {
+            Repository repo = MapRepositoryBuilder.newRepository();
+            Session[] pair = new Environment().newSessionPair();
+            pair[0].send(RemoteRepositoryServer.from(repo));
+            RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+            clientRepo = ClientRepository.from(remoteRepo);
+        }
+
+        Storage<StorableTestVersioned> storage =
+            clientRepo.storageFor(StorableTestVersioned.class);
+
+        RemoteProcedureCapability cap = clientRepo.getCapability(RemoteProcedureCapability.class);
+
+        QueryDiffLayoutProc proc = new QueryDiffLayoutProc();
+        List<Storable> reply = cap.beginCall(proc).fetchReply().toList();
+
+        assertEquals(5, reply.size());
+        for (int i=0; i<5; i++) {
+            Storable s = reply.get(i);
+            assertEquals(i + 5, s.getPropertyValue("id"));
+            // FIXME: more
+        }
+    }
+    */
+
+    @Test
+    public void remoteProcedureFillDifferentLayout() throws Exception {
+        // Tests that Storables can be sent from caller to procedure, where
+        // Storable layout version differs.
+
+        Repository clientRepo;
+        {
+            Repository repo = MapRepositoryBuilder.newRepository();
+            Session[] pair = new Environment().newSessionPair();
+            pair[0].send(RemoteRepositoryServer.from(repo));
+            RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+            clientRepo = ClientRepository.from(remoteRepo);
+        }
+
+        Class<? extends Storable> newType = generateNewType();
+        Storage<? extends Storable> newStorage = clientRepo.storageFor(newType);
+
+        RemoteProcedureCapability cap = clientRepo.getCapability(RemoteProcedureCapability.class);
+
+        FillProc proc = new FillProc();
+        RemoteProcedure.Call call = cap.beginCall(proc);
+        for (int i=0; i<20; i++) {
+            Storable stb = newStorage.prepare();
+            stb.setPropertyValue("id", i);
+            stb.setPropertyValue("stringProp", "hello " + i);
+            stb.setPropertyValue("intProp", 123);
+            stb.setPropertyValue("longProp", 2L);
+            call.send(stb);
+        }
+        call.execute();
+
+        Storage<StorableTestVersioned> originalStorage =
+            clientRepo.storageFor(StorableTestVersioned.class);
+
+        Cursor<StorableTestVersioned> c = originalStorage.query().orderBy("id").fetch();
+        int i = 0;
+        while (c.hasNext()) {
+            StorableTestVersioned stb = c.next();
+            assertEquals(i, stb.getId());
+            assertEquals("hello " + i, stb.getStringProp());
+            assertEquals(123, stb.getIntProp());
+            assertTrue(0.0 == stb.getDoubleProp());
+            i++;
+        }
+    }
+
+    private static Class<? extends Storable> generateNewType() throws SupportException {
+        final String newName = StorableTestVersioned.class.getName();
+
+        SyntheticStorableBuilder bob = new SyntheticStorableBuilder
+            (newName, new ClassLoader() {
+                @Override
+                protected Class<?> loadClass(String name, boolean resolve)
+                    throws ClassNotFoundException
+                {
+                    if (name.equals(newName)) {
+                        throw new ClassNotFoundException();
+                    }
+                    return super.loadClass(name, resolve);
+                }
+            });
+        bob.setClassNameProvider(new SyntheticStorableBuilder.ClassNameProvider() {
+            public String getName() {
+                return newName;
+            }
+            public boolean isExplicit() {
+                return true;
+            }
+        });
+        bob.addProperty("id", int.class);
+        bob.addPrimaryKey().addProperty("id");
+        bob.addProperty("stringProp", String.class);
+        bob.addProperty("version", int.class).setIsVersion(true);
+        // These are still required by server.
+        bob.addProperty("intProp", int.class);
+        bob.addProperty("longProp", long.class);
+        return bob.build();
+    }
+
+    private void fill(Storage<StorableTestVersioned> storage) throws Exception {
+        for (int j = 0; j < 20; ++j) {
+            StorableTestVersioned stb = storage.prepare();
+            stb.setId(j);
+            stb.setStringProp(j + "world");
+            stb.setIntProp(321);
+            stb.setLongProp(313244232323432L);
+            stb.setDoubleProp(1.423423);
+            stb.insert();
+        }
+    }
+
+    private static class EchoProc implements RemoteProcedure<String, String> {
+        private static int mRequestCount;
+        private static int mSuccessCount;
+
+        public synchronized boolean handleRequest(Repository repo, Request<String, String> request)
+            throws RepositoryException
+        {
+            synchronized (EchoProc.class) {
+                mRequestCount++;
+                String message = request.receive();
+                if (message == null) {
+                    request.finish();
+                } else {
+                    request.beginReply().send(message + "!").finish();
+                }
+                mSuccessCount++;
+            }
+            return true;
+        }
+
+        static synchronized void resetEchoCounts() {
+            mRequestCount = 0;
+            mSuccessCount = 0;
+        }
+
+        static synchronized void assertEchoCounts(int requestCount, int successCount) {
+            assertEquals("request count", requestCount, mRequestCount);
+            assertEquals("success count", successCount, mSuccessCount);
+        }
+    }
+
+    private static class InsertProc implements RemoteProcedure<Object, Object> {
+        private final int mId;
+
+        InsertProc(int id) {
+            mId = id;
+        }
+
+        public synchronized boolean handleRequest(Repository repo, Request<Object, Object> request)
+            throws RepositoryException
+        {
+            Storage<StorableTestVersioned> storage = repo.storageFor(StorableTestVersioned.class);
+            StorableTestVersioned stb = storage.prepare();
+            stb.setId(mId);
+            stb.setStringProp("hello");
+            stb.setIntProp(321);
+            stb.setLongProp(313244232323432L);
+            stb.setDoubleProp(1.423423);
+            stb.insert();
+            return true;
+        }
+    }
+
+    private static class QueryProc implements RemoteProcedure<StorableTestVersioned, Object> {
+        private final String mFilter;
+        private final Object[] mParams;
+
+        QueryProc(String filter, Object... params) {
+            mFilter = filter;
+            mParams = params;
+        }
+
+        public boolean handleRequest(Repository repo,
+                                     Request<StorableTestVersioned, Object> request)
+            throws RepositoryException
+        {
+            Storage<StorableTestVersioned> storage = repo.storageFor(StorableTestVersioned.class);
+            Cursor<StorableTestVersioned> c = storage.query(mFilter).withValues(mParams).fetch();
+            request.beginReply().sendAll(c).finish();
+            return true;
+        }
+    }
+
+    /*
+    private static class QueryDiffLayoutProc implements RemoteProcedure<Storable, Object> {
+        QueryDiffLayoutProc() {
+        }
+
+        public boolean handleRequest(Repository repo, Request<Storable, Object> request)
+            throws RepositoryException
+        {
+            Class<? extends Storable> newType = generateNewType();
+            Storage<? extends Storable> newStorage = repo.storageFor(newType);
+
+            for (int i=0; i<5; i++) {
+                Storable stb = newStorage.prepare();
+                stb.setPropertyValue("id", i + 5);
+                stb.setPropertyValue("stringProp", "hello " + (i + 5));
+                stb.setPropertyValue("intProp", 123);
+                stb.setPropertyValue("longProp", 2L);
+                stb.insert();
+            }
+
+            Cursor<? extends Storable> c = newStorage.query().fetch();
+            request.beginReply().sendAll(c).finish();
+            return true;
+        }
+    }
+    */
+
+    private static class FillProc implements RemoteProcedure<Object, StorableTestVersioned> {
+        FillProc() {
+        }
+
+        public boolean handleRequest(Repository repo,
+                                     Request<Object, StorableTestVersioned> request)
+            throws RepositoryException
+        {
+            StorableTestVersioned stb;
+            while ((stb = request.receive()) != null) {
+                stb.insert();
+            }
+            return true;
         }
     }
 }

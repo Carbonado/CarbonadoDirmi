@@ -56,7 +56,7 @@ class ClientTransactionManager extends TransactionManager<RemoteTransaction> {
 
     @Override 
     protected boolean supportsForUpdate() {
-        // FIXME: ask remote repository once and cache
+        // TODO: ask remote repository once and cache
         return true;
     }
 

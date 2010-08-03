@@ -70,7 +70,7 @@ abstract class StorableWriter<S extends Storable> {
 
         @Override
         void writeForLoad(S storable, OutputStream out) throws IOException, SupportException {
-            // FIXME: just write the primary or alternate keys somehow
+            // TODO: just write the primary or alternate keys somehow
             Storable target = mFactory.newInstance();
             mCopier.copyAllProperties(storable, target);
             target.writeTo(out);
@@ -112,7 +112,7 @@ abstract class StorableWriter<S extends Storable> {
         void writeInsertResponse(S storable, OutputStream out)
             throws IOException, SupportException
         {
-            // FIXME: only write back what changed somehow
+            // TODO: only write back what changed somehow
             Storable target = mFactory.newInstance();
             mCopier.copyAllProperties(storable, target);
             target.markAllPropertiesClean();
@@ -123,7 +123,7 @@ abstract class StorableWriter<S extends Storable> {
         void writeUpdateResponse(S storable, OutputStream out)
             throws IOException, SupportException
         {
-            // FIXME: only write back what changed somehow
+            // TODO: only write back what changed somehow
             Storable target = mFactory.newInstance();
             mCopier.copyAllProperties(storable, target);
             target.markAllPropertiesClean();
@@ -137,7 +137,7 @@ abstract class StorableWriter<S extends Storable> {
 
         @Override
         void writeForLoad(S storable, OutputStream out) throws IOException, SupportException {
-            // FIXME: just write the primary or alternate keys somehow
+            // TODO: just write the primary or alternate keys somehow
             storable.writeTo(out);
         }
 
@@ -148,13 +148,13 @@ abstract class StorableWriter<S extends Storable> {
 
         @Override
         void writeForUpdate(S storable, OutputStream out) throws IOException, SupportException {
-            // FIXME: just write the primary keys and dirty properties somehow
+            // TODO: just write the primary keys and dirty properties somehow
             storable.writeTo(out);
         }
 
         @Override
         void writeForDelete(S storable, OutputStream out) throws IOException, SupportException {
-            // FIXME: just write the primary keys somehow
+            // TODO: just write the primary keys somehow
             storable.writeTo(out);
         }
 
@@ -169,7 +169,7 @@ abstract class StorableWriter<S extends Storable> {
         void writeInsertResponse(S storable, OutputStream out)
             throws IOException, SupportException
         {
-            // FIXME: only write back what changed somehow
+            // TODO: only write back what changed somehow
             storable.writeTo(out);
         }
 
@@ -177,7 +177,7 @@ abstract class StorableWriter<S extends Storable> {
         void writeUpdateResponse(S storable, OutputStream out)
             throws IOException, SupportException
         {
-            // FIXME: only write back what changed somehow
+            // TODO: only write back what changed somehow
             storable.writeTo(out);
         }
     }

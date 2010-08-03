@@ -80,4 +80,12 @@ public interface RemoteRepository extends Remote {
     @RemoteFailure(exception=RepositoryException.class)
     RemoteSequenceValueProducer getSequenceValueProducer(String name)
         throws RepositoryException;
+
+    /**
+     * Client repository should call this once and re-use the returned instance.
+     */
+    @Batched
+    @RemoteFailure(exception=RepositoryException.class)
+    RemoteProcedureExecutor newRemoteProcedureExecutor(RemoteStorageRequestor r)
+        throws RepositoryException;
 }
