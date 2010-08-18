@@ -23,8 +23,6 @@ import java.io.OutputStream;
 
 import java.util.Map;
 
-import org.cojen.util.SoftValuedHashMap;
-
 import com.amazon.carbonado.FetchException;
 import com.amazon.carbonado.RepositoryException;
 import com.amazon.carbonado.SupportException;
@@ -38,6 +36,8 @@ import com.amazon.carbonado.layout.LayoutFactory;
 import com.amazon.carbonado.gen.DetachedStorableFactory;
 import com.amazon.carbonado.gen.StorableCopier;
 
+import com.amazon.carbonado.util.SoftValuedCache;
+
 /**
  * Cache of reconstructed classes corresponding to a Layout.
  *
@@ -46,10 +46,10 @@ import com.amazon.carbonado.gen.StorableCopier;
 class ReconstructedCache {
     static final ReconstructedCache THE = new ReconstructedCache();
 
-    private final Map<StorableLayoutKey, Class> mCache;
+    private final SoftValuedCache<StorableLayoutKey, Class> mCache;
 
     private ReconstructedCache() {
-        mCache = new SoftValuedHashMap<StorableLayoutKey, Class>();
+        mCache = SoftValuedCache.newCache(3);
     }
 
     Layout layoutFor(Class<? extends Storable> type) throws RepositoryException {
