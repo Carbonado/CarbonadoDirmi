@@ -18,6 +18,9 @@
 
 package com.amazon.carbonado.repo.dirmi;
 
+import java.rmi.NoSuchObjectException;
+import java.rmi.RemoteException;
+
 import java.util.concurrent.TimeUnit;
 
 import com.amazon.carbonado.IsolationLevel;
@@ -81,14 +84,42 @@ class ClientTransactionManager extends TransactionManager<RemoteTransaction> {
         }
     }
 
+    @Override
+    protected void setForUpdate(RemoteTransaction txn, boolean forUpdate) {
+        try {
+            txn.setForUpdate(forUpdate);
+        } catch (NoSuchObjectException e) {
+            // Transaction has been aborted.
+        } catch (RemoteException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Override 
     protected boolean commitTxn(RemoteTransaction txn) throws PersistException {
-        txn.commit();
-        return true;
+        try {
+            txn.commit();
+            return true;
+        } catch (PersistException e) {
+            if (e.getCause() instanceof NoSuchObjectException) {
+                // Transaction has been aborted.
+                return false;
+            } else {
+                throw e;
+            }
+        }
     }
 
     @Override 
     protected void abortTxn(RemoteTransaction txn) throws PersistException {
-        txn.exit();
+        try {
+            txn.exit();
+        } catch (PersistException e) {
+            if (e.getCause() instanceof NoSuchObjectException) {
+                // Transaction has been aborted.
+            } else {
+                throw e;
+            }
+        }
     }
 }

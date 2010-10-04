@@ -19,9 +19,11 @@
 package com.amazon.carbonado.repo.dirmi;
 
 import java.rmi.Remote;
+import java.rmi.RemoteException;
 
 import org.cojen.dirmi.Asynchronous;
 import org.cojen.dirmi.Batched;
+import org.cojen.dirmi.Disposer;
 import org.cojen.dirmi.RemoteFailure;
 
 import com.amazon.carbonado.IsolationLevel;
@@ -40,16 +42,14 @@ public interface RemoteTransaction extends Remote {
     void commit() throws PersistException;
 
     @Asynchronous
+    @Disposer
     @RemoteFailure(exception=PersistException.class)
     void exit() throws PersistException;
 
     @Batched
-    @RemoteFailure(exception=RepositoryException.class, declared=false)
-    void setForUpdate(boolean forUpdate);
+    void setForUpdate(boolean forUpdate) throws RemoteException;
 
-    @RemoteFailure(exception=RepositoryException.class, declared=false)
-    boolean isForUpdate();
+    boolean isForUpdate() throws RemoteException;
 
-    @RemoteFailure(exception=RepositoryException.class, declared=false)
-    IsolationLevel getIsolationLevel();
+    IsolationLevel getIsolationLevel() throws RemoteException;
 }
