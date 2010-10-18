@@ -80,6 +80,8 @@ public interface RemoteRepository extends Remote {
     @RemoteFailure(exception=RepositoryException.class)
     RemoteSequenceValueProducer getSequenceValueProducer(String name)
         throws RepositoryException;
+    
+    RemoteResyncCapability getResyncCapability() throws RemoteException;
 
     /**
      * Client repository should call this once and re-use the returned instance.

@@ -38,8 +38,10 @@ import com.amazon.carbonado.*;
 
 import com.amazon.carbonado.capability.RemoteProcedure;
 import com.amazon.carbonado.capability.RemoteProcedureCapability;
+import com.amazon.carbonado.capability.ResyncCapability;
 
 import com.amazon.carbonado.repo.map.MapRepositoryBuilder;
+import com.amazon.carbonado.repo.replicated.ReplicatedRepositoryBuilder;
 
 import com.amazon.carbonado.sequence.SequenceCapability;
 import com.amazon.carbonado.sequence.SequenceValueProducer;
@@ -1118,6 +1120,154 @@ public class RemoteTest {
             assertTrue(0.0 == stb.getDoubleProp());
             i++;
         }
+    }
+    
+    @Test
+    public void remoteResyncCapability() throws Exception {
+    	// Tests that ResyncCapability can be sent from remote repository
+    	// to client repository.
+
+        Repository clientRepo, replicatedRepo;
+        {    
+            ReplicatedRepositoryBuilder rrBuilder = new ReplicatedRepositoryBuilder();
+            rrBuilder.setMasterRepositoryBuilder(new MapRepositoryBuilder());
+            rrBuilder.setReplicaRepositoryBuilder(new MapRepositoryBuilder());
+            replicatedRepo = rrBuilder.build();
+            
+            Session[] pair = new Environment().newSessionPair();
+            pair[0].send(RemoteRepositoryServer.from(replicatedRepo));
+            RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+            clientRepo = ClientRepository.from(remoteRepo);
+        }
+        
+        ResyncCapability resyncCap = replicatedRepo.getCapability( ResyncCapability.class );
+        assertNotNull(resyncCap);
+        Storage<StorableTestVersioned> mainRepoStorage =
+            resyncCap.getMasterRepository().storageFor(StorableTestVersioned.class);
+
+        StorableTestVersioned stb = mainRepoStorage.prepare();
+        stb.setId(1);
+        stb.setStringProp( "SomeValue" );
+        stb.setIntProp( 1 );
+        stb.setDoubleProp( 1.0 );
+        stb.setLongProp( 1L );
+        stb.setVersion( 1 );
+        assertFalse( stb.tryLoad() );
+        stb.insert();
+        
+        stb = mainRepoStorage.prepare();
+        stb.setId(1);
+        assertTrue( stb.tryLoad() );
+        
+        Storage<StorableTestVersioned> replicatedRepoStorage =
+            replicatedRepo.storageFor(StorableTestVersioned.class);
+
+        StorableTestVersioned stbReplicated = replicatedRepoStorage.prepare();
+        stbReplicated.setId(1);
+        assertFalse( stbReplicated.tryLoad() );
+        
+        ResyncCapability rc = (ResyncCapability)clientRepo.getCapability( ResyncCapability.class ); 
+        assertNotNull( rc );
+        rc.resync( StorableTestVersioned.class, 1.0, "id=?", new Object[] { Integer.valueOf(1) } );
+        
+        stbReplicated = replicatedRepoStorage.prepare();
+        stbReplicated.setId(1);
+        assertTrue( stbReplicated.tryLoad() );
+    }
+    
+    @Test
+    public void remoteResyncCapabilityResyncAll() throws Exception {
+        // Tests that ResyncCapability can be sent from remote repository
+        // to client repository.
+
+        Repository clientRepo, replicatedRepo;
+        {    
+            ReplicatedRepositoryBuilder rrBuilder = new ReplicatedRepositoryBuilder();
+            rrBuilder.setMasterRepositoryBuilder(new MapRepositoryBuilder());
+            rrBuilder.setReplicaRepositoryBuilder(new MapRepositoryBuilder());
+            replicatedRepo = rrBuilder.build();
+            
+            Session[] pair = new Environment().newSessionPair();
+            pair[0].send(RemoteRepositoryServer.from(replicatedRepo));
+            RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+            clientRepo = ClientRepository.from(remoteRepo);
+        }
+        
+        ResyncCapability resyncCap = replicatedRepo.getCapability( ResyncCapability.class );
+        assertNotNull(resyncCap);
+        Storage<StorableTestVersioned> mainRepoStorage =
+            resyncCap.getMasterRepository().storageFor(StorableTestVersioned.class);
+
+        StorableTestVersioned stb = mainRepoStorage.prepare();
+        stb.setId(1);
+        stb.setStringProp( "SomeValue" );
+        stb.setIntProp( 1 );
+        stb.setDoubleProp( 1.0 );
+        stb.setLongProp( 1L );
+        stb.setVersion( 1 );
+        assertFalse( stb.tryLoad() );
+        stb.insert();
+        
+        stb = mainRepoStorage.prepare();
+        stb.setId(2);
+        stb.setStringProp( "SomeValue" );
+        stb.setIntProp( 2 );
+        stb.setDoubleProp( 2.0 );
+        stb.setLongProp( 2L );
+        stb.setVersion( 2 );
+        assertFalse( stb.tryLoad() );
+        stb.insert();
+        
+        stb = mainRepoStorage.prepare();
+        stb.setId(1);
+        assertTrue( stb.tryLoad() );
+        
+        stb = mainRepoStorage.prepare();
+        stb.setId(2);
+        assertTrue( stb.tryLoad() );
+        
+        Storage<StorableTestVersioned> replicatedRepoStorage =
+            replicatedRepo.storageFor(StorableTestVersioned.class);
+
+        StorableTestVersioned stbReplicated = replicatedRepoStorage.prepare();
+        stbReplicated.setId(1);
+        assertFalse( stbReplicated.tryLoad() );
+        
+        stbReplicated = replicatedRepoStorage.prepare();
+        stbReplicated.setId(2);
+        assertFalse( stbReplicated.tryLoad() );
+        
+        ResyncCapability rc = (ResyncCapability)clientRepo.getCapability( ResyncCapability.class ); 
+        assertNotNull( rc );
+        rc.resync( StorableTestVersioned.class, 1.0, null, null );
+        
+        stbReplicated = replicatedRepoStorage.prepare();
+        stbReplicated.setId(1);
+        assertTrue( stbReplicated.tryLoad() );
+        
+        stbReplicated = replicatedRepoStorage.prepare();
+        stbReplicated.setId(2);
+        assertTrue( stbReplicated.tryLoad() );
+    }
+    
+    @Test
+    public void noRemoteResyncCapability() throws Exception {
+        // Tests that ClientRepository returns null if the server does not have
+        // any ResyncCapability.
+
+        Repository clientRepo, mainRepo;
+        {    
+            MapRepositoryBuilder repoBuilder = new MapRepositoryBuilder();
+            mainRepo = repoBuilder.build();
+            
+            Session[] pair = new Environment().newSessionPair();
+            pair[0].send(RemoteRepositoryServer.from(mainRepo));
+            RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+            clientRepo = ClientRepository.from(remoteRepo);
+        }
+        
+        ResyncCapability rc = (ResyncCapability)clientRepo.getCapability( ResyncCapability.class );
+        assertNull( rc );
     }
 
     private static Class<? extends Storable> generateNewType() throws SupportException {

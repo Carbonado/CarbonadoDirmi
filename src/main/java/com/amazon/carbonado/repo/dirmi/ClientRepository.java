@@ -36,8 +36,10 @@ import com.amazon.carbonado.Storable;
 import com.amazon.carbonado.Storage;
 import com.amazon.carbonado.SupportException;
 
+import com.amazon.carbonado.capability.Capability;
 import com.amazon.carbonado.capability.RemoteProcedure;
 import com.amazon.carbonado.capability.RemoteProcedureCapability;
+import com.amazon.carbonado.capability.ResyncCapability;
 
 import com.amazon.carbonado.layout.Layout;
 
@@ -167,6 +169,23 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction>
     }
 
     @Override
+    public <C extends Capability> C getCapability(Class<C> capabilityType) {
+        if (ResyncCapability.class.equals(capabilityType)) {
+            try {
+                RemoteResyncCapability rrc = mRepository.getResyncCapability();
+                if (rrc != null) {
+                    return (C) new ClientResyncCapability(rrc);
+                } else {
+                    return null;
+                }
+            } catch (RemoteException e) {
+                return null;
+            }
+        } else {
+            return super.getCapability(capabilityType);
+        }
+    }
+
     protected org.apache.commons.logging.Log getLog() {
         return null;
     }

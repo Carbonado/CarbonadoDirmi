@@ -39,6 +39,7 @@ import com.amazon.carbonado.Storage;
 import com.amazon.carbonado.SupportException;
 import com.amazon.carbonado.Transaction;
 
+import com.amazon.carbonado.capability.ResyncCapability;
 import com.amazon.carbonado.layout.Layout;
 
 import com.amazon.carbonado.sequence.SequenceCapability;
@@ -201,5 +202,16 @@ public class RemoteRepositoryServer implements RemoteRepository {
         if (txn != null) {
             ((RemoteTransactionServer) txn).detach();
         }
+    }
+
+    @Override
+    public RemoteResyncCapability getResyncCapability() {
+        ResyncCapability rc = mRepository.getCapability(ResyncCapability.class);
+        if (rc != null) {
+            return Wrapper
+                .from(RemoteResyncCapability.class, ResyncCapability.class)
+                .wrap(rc);
+        }
+        return null;
     }
 }
