@@ -86,7 +86,7 @@ public class RemoteRepositoryServer implements RemoteRepository {
                 Storage storage = mRepository.storageFor(storableType);
                 StorableWriter writer =
                     ReconstructedCache.THE.writerFor(storableType, clientLayout);
-                boolean writeStartMarker = protocolVersion >= 1;
+                boolean writeStartMarker = protocolVersion == 1;
                 remoteStorage = new RemoteStorageServer(storage, writer, writeStartMarker);
                 mStorageMap.put(key, remoteStorage);
             }

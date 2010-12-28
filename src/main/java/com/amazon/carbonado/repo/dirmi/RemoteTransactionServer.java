@@ -20,6 +20,8 @@ package com.amazon.carbonado.repo.dirmi;
 
 import java.rmi.server.Unreferenced;
 
+import java.util.concurrent.locks.AbstractQueuedSynchronizer;
+
 import com.amazon.carbonado.IsolationLevel;
 import com.amazon.carbonado.PersistException;
 import com.amazon.carbonado.Transaction;
@@ -29,7 +31,9 @@ import com.amazon.carbonado.Transaction;
  *
  * @author Brian S O'Neill
  */
-class RemoteTransactionServer implements RemoteTransaction, Unreferenced {
+class RemoteTransactionServer extends AbstractQueuedSynchronizer
+    implements RemoteTransaction, Unreferenced
+{
     private volatile Transaction mTxn;
 
     RemoteTransactionServer(Transaction txn) {
@@ -77,17 +81,50 @@ class RemoteTransactionServer implements RemoteTransaction, Unreferenced {
         }
     }
 
+    /**
+     * Acquires an exclusive lock on this object and then attaches the
+     * transaction to the current thread. Lock acquisition is not re-entrant.
+     */
     void attach() {
+        super.acquire(0);
+
         Transaction txn = mTxn;
         if (txn != null) {
             txn.attach();
         }
     }
 
+    /**
+     * Releases exclusive lock and detaches the transaction from the current
+     * thread.
+     */
     void detach() {
-        Transaction txn = mTxn;
-        if (txn != null) {
-            txn.detach();
+        try {
+            Transaction txn = mTxn;
+            if (txn != null) {
+                txn.detach();
+            }
+        } finally {
+            // Release exclusive lock.
+            super.release(0);
         }
+    }
+
+    // Methods for AbstractQueuedSynchronizer support.
+
+    @Override
+    protected boolean tryAcquire(int arg) {
+        // Logic to acquire lock fairly.
+        return getState() == 0 && !shouldWait() && compareAndSetState(0, 1);
+    }
+
+    @Override
+    protected boolean tryRelease(int arg) {
+        setState(0);
+        return true;
+    }
+
+    private boolean shouldWait() {
+        return hasQueuedThreads() && getFirstQueuedThread() != Thread.currentThread();
     }
 }

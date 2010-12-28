@@ -239,7 +239,7 @@ public class RemoteTest {
     }
 
     @Test
-    public void queriesTest() throws Exception { 
+    public void queryTest() throws Exception { 
         Repository repo = MapRepositoryBuilder.newRepository();
         Session[] pair = new Environment().newSessionPair();
         pair[0].send(RemoteRepositoryServer.from(repo));
@@ -257,8 +257,115 @@ public class RemoteTest {
             stb.setDoubleProp(1.423423);
             stb.tryInsert();
         }
+    }
 
+    @Test
+    public void queryTest2() throws Exception { 
+        Repository repo = MapRepositoryBuilder.newRepository();
+        Session[] pair = new Environment().newSessionPair();
+        pair[0].send(RemoteRepositoryServer.from(repo));
+        RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+        Repository clientRepo = ClientRepository.from(remoteRepo);
 
+        Storage<StorableTestVersioned> clientStorage =
+            clientRepo.storageFor(StorableTestVersioned.class);
+
+        for (int i=0; i<299; i++) {
+            StorableTestVersioned stb = clientStorage.prepare();
+            stb.setId(i);
+            stb.setStringProp("world");
+            stb.setIntProp(321);
+            stb.setLongProp(313244232323432L);
+            stb.setDoubleProp(1.423423);
+            stb.insert();
+        }
+
+        assertEquals(299, clientStorage.query().fetch().toList().size());
+    }
+
+    @Test
+    public void queryTest3() throws Exception { 
+        Repository repo = MapRepositoryBuilder.newRepository();
+        Session[] pair = new Environment().newSessionPair();
+        pair[0].send(RemoteRepositoryServer.from(repo));
+        RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+        Repository clientRepo = ClientRepository.from(remoteRepo);
+
+        Storage<StorableTestVersioned> clientStorage =
+            clientRepo.storageFor(StorableTestVersioned.class);
+
+        Transaction txn = clientRepo.enterTransaction();
+        try {
+            for (int i=0; i<299; i++) {
+                StorableTestVersioned stb = clientStorage.prepare();
+                stb.setId(i);
+                stb.setStringProp("world");
+                stb.setIntProp(321);
+                stb.setLongProp(313244232323432L);
+                stb.setDoubleProp(1.423423);
+                stb.insert();
+            }
+
+            assertEquals(299, clientStorage.query().fetch().toList().size());
+        } finally {
+            txn.exit();
+        }
+    }
+
+    @Test
+    public void queryTest4() throws Exception { 
+        Repository repo = MapRepositoryBuilder.newRepository();
+        Session[] pair = new Environment().newSessionPair();
+        pair[0].send(RemoteRepositoryServer.from(repo));
+        RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+        Repository clientRepo = ClientRepository.from(remoteRepo);
+
+        Storage<StorableTestVersioned> clientStorage =
+            clientRepo.storageFor(StorableTestVersioned.class);
+
+        for (int i=0; i<1000; i++) {
+            StorableTestVersioned stb = clientStorage.prepare();
+            stb.setId(i);
+            stb.setStringProp("world");
+            stb.setIntProp(321);
+            stb.setLongProp(313244232323432L);
+            stb.setDoubleProp(1.423423);
+            stb.insert();
+        }
+
+        Transaction txn = clientRepo.enterTransaction();
+        try {
+            // Acquire write locks to prevent access by other transactions.
+            txn.setForUpdate(true);
+
+            Cursor<StorableTestVersioned> c = clientStorage.query().fetch();
+
+            // Get the server fetch started and blocked waiting for us to drain the pipe.
+            c.hasNext();
+            Thread.sleep(1000);
+
+            // There should be no problem in reading same records because we're in the same
+            // transaction.
+            {
+                Cursor<StorableTestVersioned> c2 = clientStorage.query().fetch();
+                int count = 0;
+                while (c2.hasNext()) {
+                    StorableTestVersioned stb = c2.next();
+                    assertEquals(count, stb.getId());
+                    count++;
+                }
+            }
+
+            // Finish the original cursor.
+            int count = 0;
+            while (c.hasNext()) {
+                StorableTestVersioned stb = c.next();
+                assertEquals(count, stb.getId());
+                count++;
+            }
+        } finally {
+            txn.exit();
+        }
     }
 
     @Test
@@ -1124,8 +1231,8 @@ public class RemoteTest {
     
     @Test
     public void remoteResyncCapability() throws Exception {
-    	// Tests that ResyncCapability can be sent from remote repository
-    	// to client repository.
+        // Tests that ResyncCapability can be sent from remote repository
+        // to client repository.
 
         Repository clientRepo, replicatedRepo;
         {    
@@ -1140,39 +1247,39 @@ public class RemoteTest {
             clientRepo = ClientRepository.from(remoteRepo);
         }
         
-        ResyncCapability resyncCap = replicatedRepo.getCapability( ResyncCapability.class );
+        ResyncCapability resyncCap = replicatedRepo.getCapability(ResyncCapability.class);
         assertNotNull(resyncCap);
         Storage<StorableTestVersioned> mainRepoStorage =
             resyncCap.getMasterRepository().storageFor(StorableTestVersioned.class);
 
         StorableTestVersioned stb = mainRepoStorage.prepare();
         stb.setId(1);
-        stb.setStringProp( "SomeValue" );
-        stb.setIntProp( 1 );
-        stb.setDoubleProp( 1.0 );
-        stb.setLongProp( 1L );
-        stb.setVersion( 1 );
-        assertFalse( stb.tryLoad() );
+        stb.setStringProp("SomeValue");
+        stb.setIntProp(1);
+        stb.setDoubleProp(1.0);
+        stb.setLongProp(1L);
+        stb.setVersion(1);
+        assertFalse(stb.tryLoad());
         stb.insert();
         
         stb = mainRepoStorage.prepare();
         stb.setId(1);
-        assertTrue( stb.tryLoad() );
+        assertTrue(stb.tryLoad());
         
         Storage<StorableTestVersioned> replicatedRepoStorage =
             replicatedRepo.storageFor(StorableTestVersioned.class);
 
         StorableTestVersioned stbReplicated = replicatedRepoStorage.prepare();
         stbReplicated.setId(1);
-        assertFalse( stbReplicated.tryLoad() );
+        assertFalse(stbReplicated.tryLoad());
         
-        ResyncCapability rc = (ResyncCapability)clientRepo.getCapability( ResyncCapability.class ); 
-        assertNotNull( rc );
-        rc.resync( StorableTestVersioned.class, 1.0, "id=?", new Object[] { Integer.valueOf(1) } );
+        ResyncCapability rc = (ResyncCapability)clientRepo.getCapability(ResyncCapability.class); 
+        assertNotNull(rc);
+        rc.resync(StorableTestVersioned.class, 1.0, "id=?", new Object[] { Integer.valueOf(1) });
         
         stbReplicated = replicatedRepoStorage.prepare();
         stbReplicated.setId(1);
-        assertTrue( stbReplicated.tryLoad() );
+        assertTrue(stbReplicated.tryLoad());
     }
     
     @Test
@@ -1193,61 +1300,61 @@ public class RemoteTest {
             clientRepo = ClientRepository.from(remoteRepo);
         }
         
-        ResyncCapability resyncCap = replicatedRepo.getCapability( ResyncCapability.class );
+        ResyncCapability resyncCap = replicatedRepo.getCapability(ResyncCapability.class);
         assertNotNull(resyncCap);
         Storage<StorableTestVersioned> mainRepoStorage =
             resyncCap.getMasterRepository().storageFor(StorableTestVersioned.class);
 
         StorableTestVersioned stb = mainRepoStorage.prepare();
         stb.setId(1);
-        stb.setStringProp( "SomeValue" );
-        stb.setIntProp( 1 );
-        stb.setDoubleProp( 1.0 );
-        stb.setLongProp( 1L );
-        stb.setVersion( 1 );
-        assertFalse( stb.tryLoad() );
+        stb.setStringProp("SomeValue");
+        stb.setIntProp(1);
+        stb.setDoubleProp(1.0);
+        stb.setLongProp(1L);
+        stb.setVersion(1);
+        assertFalse(stb.tryLoad());
         stb.insert();
         
         stb = mainRepoStorage.prepare();
         stb.setId(2);
-        stb.setStringProp( "SomeValue" );
-        stb.setIntProp( 2 );
-        stb.setDoubleProp( 2.0 );
-        stb.setLongProp( 2L );
-        stb.setVersion( 2 );
-        assertFalse( stb.tryLoad() );
+        stb.setStringProp("SomeValue");
+        stb.setIntProp(2);
+        stb.setDoubleProp(2.0);
+        stb.setLongProp(2L);
+        stb.setVersion(2);
+        assertFalse(stb.tryLoad());
         stb.insert();
         
         stb = mainRepoStorage.prepare();
         stb.setId(1);
-        assertTrue( stb.tryLoad() );
+        assertTrue(stb.tryLoad());
         
         stb = mainRepoStorage.prepare();
         stb.setId(2);
-        assertTrue( stb.tryLoad() );
+        assertTrue(stb.tryLoad());
         
         Storage<StorableTestVersioned> replicatedRepoStorage =
             replicatedRepo.storageFor(StorableTestVersioned.class);
 
         StorableTestVersioned stbReplicated = replicatedRepoStorage.prepare();
         stbReplicated.setId(1);
-        assertFalse( stbReplicated.tryLoad() );
+        assertFalse(stbReplicated.tryLoad());
         
         stbReplicated = replicatedRepoStorage.prepare();
         stbReplicated.setId(2);
-        assertFalse( stbReplicated.tryLoad() );
+        assertFalse(stbReplicated.tryLoad());
         
-        ResyncCapability rc = (ResyncCapability)clientRepo.getCapability( ResyncCapability.class ); 
-        assertNotNull( rc );
-        rc.resync( StorableTestVersioned.class, 1.0, null, null );
+        ResyncCapability rc = (ResyncCapability)clientRepo.getCapability(ResyncCapability.class); 
+        assertNotNull(rc);
+        rc.resync(StorableTestVersioned.class, 1.0, null, (Object[]) null);
         
         stbReplicated = replicatedRepoStorage.prepare();
         stbReplicated.setId(1);
-        assertTrue( stbReplicated.tryLoad() );
+        assertTrue(stbReplicated.tryLoad());
         
         stbReplicated = replicatedRepoStorage.prepare();
         stbReplicated.setId(2);
-        assertTrue( stbReplicated.tryLoad() );
+        assertTrue(stbReplicated.tryLoad());
     }
     
     @Test
@@ -1266,8 +1373,8 @@ public class RemoteTest {
             clientRepo = ClientRepository.from(remoteRepo);
         }
         
-        ResyncCapability rc = (ResyncCapability)clientRepo.getCapability( ResyncCapability.class );
-        assertNull( rc );
+        ResyncCapability rc = (ResyncCapability)clientRepo.getCapability(ResyncCapability.class);
+        assertNull(rc);
     }
 
     private static Class<? extends Storable> generateNewType() throws SupportException {

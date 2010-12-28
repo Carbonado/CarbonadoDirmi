@@ -57,6 +57,8 @@ class RemoteStorageServer implements RemoteStorage {
     static final byte CURSOR_END = 2;
     static final byte CURSOR_START = 3;
 
+    private static final int FETCH_BATCH_SIZE = 100;
+
     private final Storage mStorage;
     private final StorableWriter mWriter;
     private final boolean mWriteStartMarker;
@@ -276,24 +278,60 @@ class RemoteStorageServer implements RemoteStorage {
                     } else {
                         cursor = query.fetchSlice(from, to);
                     }
-                } finally {
-                    detach(txn);
-                }
 
-                if (txn != null && mWriteStartMarker) {
-                    // Indicate that cursor is using correct transaction.
-                    out.write(CURSOR_START);
-                    out.flush();
-                }
+                    try {
+                        if (txn != null && mWriteStartMarker) {
+                            out.write(CURSOR_START);
+                        }
 
-                try {
-                    while (cursor.hasNext()) {
-                        Storable s = (Storable) cursor.next();
-                        out.write(CURSOR_STORABLE);
-                        mWriter.writeLoadResponse(s, out);
+                        // Another thread might want access to the transaction
+                        // while fetching from the cursor. Detach cursor from
+                        // thread while writing over pipe, which is a blocking
+                        // operation. To reduce overhead of attach/detach,
+                        // operate over batches.
+
+                        final Storable[] batch = new Storable[FETCH_BATCH_SIZE];
+                        final RemoteTransaction originalTxn = txn;
+
+                        while (true) {
+                            int size = 0;
+                            while (cursor.hasNext()) {
+                                batch[size++] = (Storable) cursor.next();
+                                if (size >= batch.length) {
+                                    break;
+                                }
+                            }
+
+                            if (size == 0) {
+                                break;
+                            }
+
+                            // Detach while writing batch, and temporarily set
+                            // txn to null to prevent detach in outer finally
+                            // block from functioning.
+                            detach(txn);
+                            txn = null;
+
+                            for (int i=0; i<size; i++) {
+                                out.write(CURSOR_STORABLE);
+                                mWriter.writeLoadResponse(batch[i], out);
+                                batch[i] = null;
+                            }
+
+                            if (size < batch.length) {
+                                // Incomplete batch because cursor has finished.
+                                break;
+                            }
+
+                            // Re-attach and fetch another batch.
+                            attachFetch(originalTxn);
+                            txn = originalTxn;
+                        }
+                    } finally {
+                        cursor.close();
                     }
                 } finally {
-                    cursor.close();
+                    detach(txn);
                 }
 
                 out.write(CURSOR_END);

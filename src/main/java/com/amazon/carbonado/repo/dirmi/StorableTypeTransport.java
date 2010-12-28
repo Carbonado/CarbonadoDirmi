@@ -44,9 +44,12 @@ public class StorableTypeTransport implements Serializable {
     private volatile transient Layout mLayout;
 
     StorableTypeTransport(Class<? extends Storable> type, Layout layout) {
-        // 0: First protocol version.
-        // 1: Introduce RemoteStorageServer.CURSOR_START marker.
-        this(1, type, layout);
+        // 0:  Original protocol version.
+        // 1:  Use RemoteStorageServer.CURSOR_START marker. Obsolete.
+        // -1: Doesn't write start marker and fetch doesn't block waiting for first result.
+        //     Note: New protocol versions must go negative, as a workaround for
+        //           older code which had a >= version check.
+        this(-1, type, layout);
     }
 
     StorableTypeTransport(int protocolVersion, Class<? extends Storable> type, Layout layout) {

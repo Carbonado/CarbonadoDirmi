@@ -69,7 +69,7 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     private final TriggerManager<S> mTriggerManager;
     private final InstanceFactory mInstanceFactory;
     private final ClientQueryFactory<S> mQueryFactory;
-    private final boolean mReadStartMarker;
+    private final int mProtocolVersion;
 
     private volatile StorageProxy<S> mStorageProxy;
 
@@ -90,7 +90,7 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
 
         mQueryFactory = new ClientQueryFactory<S>(type, this);
 
-        mReadStartMarker = transport.getProtocolVersion() >= 1;
+        mProtocolVersion = transport.getProtocolVersion();
 
         // Set mStorage and determine supported independent properties.
         reconnect(transport);
@@ -330,10 +330,11 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
             Pipe pipe = mStorageProxy.mStorage.queryFetch(fv, orderBy, from, to, txn, null);
             ClientCursor<S> cursor = new ClientCursor<S>(this, pipe);
-            if (txn != null) {
+            if (txn != null && mProtocolVersion >= 0) {
                 // Block until server has created it's cursor against the
                 // transaction we just passed to it.
-                if (mReadStartMarker) {
+                if (mProtocolVersion >= 1) {
+                    // Read start marker.
                     byte op = pipe.readByte();
                     if (op != RemoteStorageServer.CURSOR_START) {
                         Throwable t;
