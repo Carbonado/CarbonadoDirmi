@@ -69,7 +69,6 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     private final TriggerManager<S> mTriggerManager;
     private final InstanceFactory mInstanceFactory;
     private final ClientQueryFactory<S> mQueryFactory;
-    private final int mProtocolVersion;
 
     private volatile StorageProxy<S> mStorageProxy;
 
@@ -89,8 +88,6 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             .getInstance(delegateStorableClass, InstanceFactory.class);
 
         mQueryFactory = new ClientQueryFactory<S>(type, this);
-
-        mProtocolVersion = transport.getProtocolVersion();
 
         // Set mStorage and determine supported independent properties.
         reconnect(transport);
@@ -330,10 +327,10 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
             Pipe pipe = mStorageProxy.mStorage.queryFetch(fv, orderBy, from, to, txn, null);
             ClientCursor<S> cursor = new ClientCursor<S>(this, pipe);
-            if (txn != null && mProtocolVersion >= 0) {
+            if (txn != null && mStorageProxy.mProtocolVersion >= 0) {
                 // Block until server has created it's cursor against the
                 // transaction we just passed to it.
-                if (mProtocolVersion >= 1) {
+                if (mStorageProxy.mProtocolVersion >= 1) {
                     // Read start marker.
                     byte op = pipe.readByte();
                     if (op != RemoteStorageServer.CURSOR_START) {
@@ -511,7 +508,8 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             supported = storage.getPropertySupport(indieList.toArray(new String[0]));
         }
 
-        mStorageProxy = new StorageProxy<S>(storage, writer, supported);
+        mStorageProxy = new StorageProxy<S>
+            (transport.getProtocolVersion(), storage, writer, supported);
     }
 
     public static interface InstanceFactory {
@@ -520,12 +518,16 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
 
     // Allows several objects to be swapped-in atomically.
     private static final class StorageProxy<S extends Storable> {
+        final int mProtocolVersion;
         final RemoteStorage mStorage;
         final StorableWriter<S> mWriter;
         // Cache of independent property support.
         final Set<String> mSupportedProperties;
 
-        StorageProxy(RemoteStorage storage, StorableWriter<S> writer, Set<String> supported) {
+        StorageProxy(int protocolVersion,
+                     RemoteStorage storage, StorableWriter<S> writer, Set<String> supported)
+        {
+            mProtocolVersion = protocolVersion;
             mStorage = storage;
             mWriter = writer;
             mSupportedProperties = supported;

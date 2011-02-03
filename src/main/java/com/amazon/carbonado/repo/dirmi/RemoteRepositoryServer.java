@@ -77,7 +77,7 @@ public class RemoteRepositoryServer implements RemoteRepository {
         int protocolVersion = transport.getProtocolVersion();
         Class storableType = transport.getStorableType();
         Layout clientLayout = transport.getLayout();
-        StorableLayoutKey key = new StorableLayoutKey(storableType, clientLayout);
+        StorableLayoutKey key = new StorableLayoutKey(protocolVersion, storableType, clientLayout);
 
         RemoteStorage remoteStorage;
         synchronized (mStorageMap) {

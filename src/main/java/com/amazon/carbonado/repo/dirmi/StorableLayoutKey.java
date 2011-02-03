@@ -28,17 +28,19 @@ import com.amazon.carbonado.layout.Layout;
  * @author Brian S O'Neill
  */
 class StorableLayoutKey {
+    private final int mProtocolVersion;
     private final Class mType;
     private final Layout mLayout;
 
-    StorableLayoutKey(Class type, Layout layout) {
+    StorableLayoutKey(int protocolVersion, Class type, Layout layout) {
+        mProtocolVersion = protocolVersion;
         mType = type;
         mLayout = layout;
     }
 
     @Override
     public int hashCode() {
-        return mType.hashCode() + mLayout.hashCode();
+        return mProtocolVersion + mType.hashCode() + mLayout.hashCode();
     }
 
     @Override
@@ -49,7 +51,8 @@ class StorableLayoutKey {
         if (obj instanceof StorableLayoutKey) {
             StorableLayoutKey other = (StorableLayoutKey) obj;
             try {
-                return mType == other.mType && mLayout.equalLayouts(other.mLayout);
+                return mProtocolVersion == other.mProtocolVersion
+                    && mType == other.mType && mLayout.equalLayouts(other.mLayout);
             } catch (FetchException e) {
             }
         }
@@ -58,6 +61,7 @@ class StorableLayoutKey {
 
     @Override
     public String toString() {
-        return "StorableLayoutKey {type=" + mType.getName() + ", layout=" + mLayout + '}';
+        return "StorableLayoutKey {protocolVersion=" + mProtocolVersion +
+            ", type=" + mType.getName() + ", layout=" + mLayout + '}';
     }
 }

@@ -65,7 +65,8 @@ class ReconstructedCache {
             return null;
         }
 
-        StorableLayoutKey key = new StorableLayoutKey(type, layout);
+        // Protocol version doesn't matter.
+        StorableLayoutKey key = new StorableLayoutKey(0, type, layout);
 
         synchronized (this) {
             Class clazz = mCache.get(key);
