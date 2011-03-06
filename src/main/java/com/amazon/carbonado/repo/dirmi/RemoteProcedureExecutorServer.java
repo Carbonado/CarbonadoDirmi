@@ -52,7 +52,7 @@ class RemoteProcedureExecutorServer implements RemoteProcedureExecutor, Procedur
                 try {
                     pipe.writeByte(OP_THROWABLE);
                     pipe.writeThrowable
-                        (new RepositoryException("Transaction is invalid due to reconnect"));
+                        (new RepositoryException(ClientStorage.TXN_INVALID_MSG));
                 } finally {
                     pipe.close();
                 }

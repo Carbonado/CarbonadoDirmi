@@ -64,6 +64,9 @@ import com.amazon.carbonado.util.QuickConstructorGenerator;
  * @author Brian S O'Neill
  */
 class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S> {
+    static final String TXN_INVALID_MSG =
+        "Transaction is invalid, possibly due to a reconnect";
+
     private final Class<S> mType;
     private final ClientRepository mRepository;
     private final TriggerManager<S> mTriggerManager;
@@ -173,7 +176,7 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
             if (txn instanceof FailedTransaction) {
-                throw new FetchException("Transaction invalid due to a reconnect");
+                throw new FetchException(TXN_INVALID_MSG);
             }
 
             StorageProxy<S> proxy = mStorageProxy;
@@ -206,7 +209,7 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
             if (txn instanceof FailedTransaction) {
-                throw new PersistException("Transaction invalid due to a reconnect");
+                throw new PersistException(TXN_INVALID_MSG);
             }
 
             StorageProxy<S> proxy = mStorageProxy;
@@ -244,7 +247,7 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
             if (txn instanceof FailedTransaction) {
-                throw new PersistException("Transaction invalid due to a reconnect");
+                throw new PersistException(TXN_INVALID_MSG);
             }
 
             StorageProxy<S> proxy = mStorageProxy;
@@ -282,7 +285,7 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
             if (txn instanceof FailedTransaction) {
-                throw new PersistException("Transaction invalid due to a reconnect");
+                throw new PersistException(TXN_INVALID_MSG);
             }
 
             StorageProxy<S> proxy = mStorageProxy;
@@ -371,7 +374,7 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
             if (txn instanceof FailedTransaction) {
-                throw new FetchException("Transaction invalid due to a reconnect");
+                throw new FetchException(TXN_INVALID_MSG);
             }
 
             Pipe pipe = mStorageProxy.mStorage.queryLoadOne(fv, txn, null);
@@ -399,7 +402,7 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
             if (txn instanceof FailedTransaction) {
-                throw new FetchException("Transaction invalid due to a reconnect");
+                throw new FetchException(TXN_INVALID_MSG);
             }
 
             Pipe pipe = mStorageProxy.mStorage.queryTryLoadOne(fv, txn, null);

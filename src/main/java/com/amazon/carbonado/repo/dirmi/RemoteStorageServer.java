@@ -516,7 +516,7 @@ class RemoteStorageServer implements RemoteStorage {
             try {
                 ((RemoteTransactionServer) txn).attach();
             } catch (ClassCastException e) {
-                throw new FetchException("Transaction is invalid due to reconnect");
+                throw new FetchException(ClientStorage.TXN_INVALID_MSG);
             }
         }
     }
@@ -549,7 +549,7 @@ class RemoteStorageServer implements RemoteStorage {
             try {
                 ((RemoteTransactionServer) txn).attach();
             } catch (ClassCastException e) {
-                throw new PersistException("Transaction is invalid due to reconnect");
+                throw new PersistException(ClientStorage.TXN_INVALID_MSG);
             }
         }
     }
