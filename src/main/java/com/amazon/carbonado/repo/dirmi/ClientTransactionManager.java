@@ -29,6 +29,7 @@ import com.amazon.carbonado.Repository;
 import com.amazon.carbonado.Transaction;
 
 import com.amazon.carbonado.txn.TransactionManager;
+import com.amazon.carbonado.txn.TransactionMonitor;
 
 /**
  * 
@@ -38,7 +39,8 @@ import com.amazon.carbonado.txn.TransactionManager;
 class ClientTransactionManager extends TransactionManager<RemoteTransaction> {
     private final ClientRepository mRepository;
 
-    ClientTransactionManager(ClientRepository repo) {
+    ClientTransactionManager(ClientRepository repo, TransactionMonitor monitor) {
+        super(monitor);
         if (repo == null) {
             throw new IllegalArgumentException();
         }

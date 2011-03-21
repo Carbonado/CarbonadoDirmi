@@ -48,6 +48,7 @@ import com.amazon.carbonado.sequence.SequenceValueProducer;
 import com.amazon.carbonado.spi.AbstractRepository;
 
 import com.amazon.carbonado.txn.TransactionManager;
+import com.amazon.carbonado.txn.TransactionMonitor;
 import com.amazon.carbonado.txn.TransactionScope;
 
 /**
@@ -70,18 +71,36 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction>
      * @return ClientRepository instance wrapping the remote repository
      */
     public static ClientRepository from(RemoteRepository remote) throws RepositoryException {
-        return new ClientRepository(remote.getName(), remote);
+        return from(null, remote, null);
     }
     
     /**
      * Returns client access to a remote repository server.
      *
+     * @param name name of repository; pass null to retrieve name from remote endpoint
      * @return ClientRepository instance wrapping the remote repository
      */
     public static ClientRepository from(String name, RemoteRepository remote)
         throws RepositoryException
     {
-        return new ClientRepository(name, remote);
+        return from(name, remote, null);
+    }
+
+    /**
+     * Returns client access to a remote repository server.
+     *
+     * @param name name of repository; pass null to retrieve name from remote endpoint
+     * @param monitor optional transaction monitor
+     * @return ClientRepository instance wrapping the remote repository
+     */
+    public static ClientRepository from(String name, RemoteRepository remote,
+                                        TransactionMonitor monitor)
+        throws RepositoryException
+    {
+        if (name == null) {
+            name = remote.getName();
+        }
+        return new ClientRepository(name, remote, monitor);
     }
 
     /**
@@ -122,11 +141,11 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction>
         return mRepository;
     }
 
-    private ClientRepository(String name, RemoteRepository remote) {
+    private ClientRepository(String name, RemoteRepository remote, TransactionMonitor monitor) {
         super(name);
         mRepository = remote;
         mSequenceNames = new ConcurrentHashMap<String, String>();
-        mTxnMgr = new ClientTransactionManager(this);
+        mTxnMgr = new ClientTransactionManager(this, monitor);
     }
 
     @Override
