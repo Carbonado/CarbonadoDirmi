@@ -81,20 +81,13 @@ public class ClientCursor<S extends Storable> extends AbstractCursor<S> {
             }
             mClosed = true;
             pipe.close();
-        } catch (Error e) {
-            throw e;
-        } catch (RuntimeException e) {
-            throw e;
         } catch (Throwable e) {
             try {
                 close();
             } catch (Exception e2) {
                 // Don't care.
             }
-            if (e instanceof FetchException) {
-                throw (FetchException) e;
-            }
-            throw new FetchException(e);
+            throw ClientStorage.toFetchException(e);
         }
 
         return false;

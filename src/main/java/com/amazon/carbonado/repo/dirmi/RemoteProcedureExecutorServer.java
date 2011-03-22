@@ -69,10 +69,10 @@ class RemoteProcedureExecutorServer implements RemoteProcedureExecutor, Procedur
                 if (proc.handleRequest(mRepositoryServer.mRepository, request)) {
                     request.silentFinish();
                 }
-            } catch (RepositoryException e) {
+            } catch (Throwable e) {
                 request.silentFinish(e);
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             mRepositoryServer.detach(txn);
             Thread t = Thread.currentThread();
             t.getUncaughtExceptionHandler().uncaughtException(t, e);

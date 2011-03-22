@@ -85,38 +85,20 @@ class ProcedureRequest<R, D> implements RemoteProcedure.Request<R, D>, Procedure
             case OP_SERIALIZABLE:
                 try {
                     return (D) mPipe.readObject();
-                } catch (ClassNotFoundException e) {
-                    throw cleanup(new RepositoryException(e));
-                } catch (ClassCastException e) {
-                    // I don't actually expect a ClassCastException, because
-                    // type D isn't specialized here.
-                    silentClose();
-                    throw e;
+                } catch (Throwable e) {
+                    throw cleanup(e);
                 }
 
             case OP_THROWABLE:
-                Throwable t = mPipe.readThrowable();
-                RepositoryException re;
-                if (t instanceof RepositoryException) {
-                    re = (RepositoryException) t;
-                } else {
-                    re = new RepositoryException(t);
-                }
-                throw cleanup(re);
+                throw cleanup(mPipe.readThrowable());
 
             case OP_STORABLE_NEW_TYPE:
-                Class type;
                 try {
-                    type = (Class) mPipe.readObject();
-                } catch (ClassNotFoundException e) {
-                    throw cleanup(new RepositoryException(e));
-                }
-
-                try {
+                    Class type = (Class) mPipe.readObject();
                     mCurrentStorage =
                         mProcedureExecutor.mRepositoryServer.mRepository.storageFor(type);
-                } catch (RepositoryException e) {
-                    throw cleanup(e.toFetchException());
+                } catch (Throwable e) {
+                    throw cleanup(e);
                 }
 
                 // Fall through to next case...
@@ -126,13 +108,8 @@ class ProcedureRequest<R, D> implements RemoteProcedure.Request<R, D>, Procedure
                     Storable s = mCurrentStorage.prepare();
                     s.readFrom(mPipe.getInputStream());
                     return (D) s;
-                } catch (RepositoryException e) {
+                } catch (Throwable e) {
                     throw cleanup(e);
-                } catch (ClassCastException e) {
-                    // I don't actually expect a ClassCastException, because
-                    // type D isn't specialized here.
-                    silentClose();
-                    throw e;
                 }
 
             default:
@@ -144,18 +121,22 @@ class ProcedureRequest<R, D> implements RemoteProcedure.Request<R, D>, Procedure
     }
 
     @Override
-    public synchronized RemoteProcedure.Reply<R> beginReply() throws RepositoryException {
+    public synchronized RemoteProcedure.Reply<R> beginReply()
+        throws IllegalStateException, RepositoryException
+    {
         replyCheck(false, false);
         return new ProcedureReply<R>(mProcedureExecutor, this, mPipe);
     }
 
     @Override
-    public synchronized void finish() throws RepositoryException {
+    public synchronized void finish() throws IllegalStateException, RepositoryException {
         replyCheck(true, false);
         close();
     }
 
-    private void replyCheck(boolean forFinish, boolean forSilent) throws RepositoryException {
+    private void replyCheck(boolean forFinish, boolean forSilent)
+        throws IllegalStateException, RepositoryException
+    {
         if (mState != READY_TO_SEND) {
             if (mState == CLOSED) {
                 if (forFinish) {
@@ -214,7 +195,7 @@ class ProcedureRequest<R, D> implements RemoteProcedure.Request<R, D>, Procedure
         return "RemoteProcedure.Request {pipe=" + mPipe + '}';
     }
 
-    synchronized void silentFinish() {
+    synchronized void silentFinish() throws IllegalStateException {
         try {
             replyCheck(true, true);
             close();
@@ -223,7 +204,10 @@ class ProcedureRequest<R, D> implements RemoteProcedure.Request<R, D>, Procedure
         }
     }
 
-    synchronized void silentFinish(RepositoryException cause) throws RepositoryException {
+    /**
+     * @throws original cause if it cannot be written back
+     */
+    synchronized void silentFinish(Throwable cause) throws IllegalStateException, Throwable {
         try {
             replyCheck(true, true);
         } catch (RepositoryException e) {
@@ -281,11 +265,11 @@ class ProcedureRequest<R, D> implements RemoteProcedure.Request<R, D>, Procedure
         }
     }
 
-    private synchronized RepositoryException cleanup(RepositoryException cause)
+    private synchronized RepositoryException cleanup(Throwable cause)
         throws RepositoryException
     {
         silentClose();
-        throw cause;
+        throw ClientStorage.toRepositoryException(cause);
     }
 
     private synchronized RepositoryException quickCleanup(IOException cause)

@@ -85,7 +85,7 @@ class RemoteStorageServer implements RemoteStorage {
                 boolean loaded;
                 try {
                     loaded = s.tryLoad();
-                } catch (RepositoryException e) {
+                } catch (Throwable e) {
                     pipe.writeThrowable(e);
                     return null;
                 }
@@ -131,7 +131,7 @@ class RemoteStorageServer implements RemoteStorage {
                 boolean inserted;
                 try {
                     inserted = s.tryInsert();
-                } catch (RepositoryException e) {
+                } catch (Throwable e) {
                     pipe.writeThrowable(e);
                     return null;
                 }
@@ -178,7 +178,7 @@ class RemoteStorageServer implements RemoteStorage {
                 boolean updated;
                 try {
                     updated = s.tryUpdate();
-                } catch (RepositoryException e) {
+                } catch (Throwable e) {
                     pipe.writeThrowable(e);
                     return null;
                 }
@@ -225,7 +225,7 @@ class RemoteStorageServer implements RemoteStorage {
                 boolean deleted;
                 try {
                     deleted = s.tryDelete();
-                } catch (RepositoryException e) {
+                } catch (Throwable e) {
                     pipe.writeThrowable(e);
                     return null;
                 }
@@ -359,7 +359,7 @@ class RemoteStorageServer implements RemoteStorage {
                 Storable s;
                 try {
                     s = buildQuery(fv, null).loadOne();
-                } catch (RepositoryException e) {
+                } catch (Throwable e) {
                     pipe.writeThrowable(e);
                     return null;
                 }
@@ -391,7 +391,7 @@ class RemoteStorageServer implements RemoteStorage {
                 Storable s;
                 try {
                     s = buildQuery(fv, null).tryLoadOne();
-                } catch (RepositoryException e) {
+                } catch (Throwable e) {
                     pipe.writeThrowable(e);
                     return null;
                 }

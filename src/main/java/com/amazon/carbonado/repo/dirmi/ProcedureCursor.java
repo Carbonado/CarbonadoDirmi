@@ -95,43 +95,20 @@ class ProcedureCursor<S> extends AbstractCursor<S> implements ProcedureOpCodes {
             case OP_SERIALIZABLE:
                 try {
                     mNext = (S) mPipe.readObject();
-                } catch (ClassNotFoundException e) {
-                    throw cleanup(new FetchException(e));
-                } catch (ClassCastException e) {
-                    // I don't actually expect a ClassCastException, because
-                    // type S isn't specialized here.
-                    silentClose();
-                    throw e;
+                } catch (Throwable e) {
+                    throw cleanup(e);
                 }
                 return true;
     
             case OP_THROWABLE:
-                Throwable t = mPipe.readThrowable();
-                if (t instanceof RuntimeException) {
-                    silentClose();
-                    throw (RuntimeException) t;
-                } else {
-                    FetchException fe;
-                    if (t instanceof RepositoryException) {
-                        fe = ((RepositoryException) t).toFetchException();
-                    } else {
-                        fe = new FetchException(t);
-                    }
-                    throw cleanup(fe);
-                }
+                throw cleanup(mPipe.readThrowable());
 
             case OP_STORABLE_NEW_TYPE:
-                Class type;
                 try {
-                    type = (Class) mPipe.readObject();
-                } catch (ClassNotFoundException e) {
-                    throw cleanup(new FetchException(e));
-                }
-
-                try {
+                    Class type = (Class) mPipe.readObject();
                     mCurrentStorage = mCall.mRepository.storageFor(type);
-                } catch (RepositoryException e) {
-                    throw cleanup(e.toFetchException());
+                } catch (Throwable e) {
+                    throw cleanup(e);
                 }
 
                 // Fall through to next case...
@@ -141,13 +118,8 @@ class ProcedureCursor<S> extends AbstractCursor<S> implements ProcedureOpCodes {
                     Storable s = mCurrentStorage.prepare();
                     s.readFrom(mPipe.getInputStream());
                     mNext = (S) s;
-                } catch (RepositoryException e) {
-                    throw cleanup(e.toFetchException());
-                } catch (ClassCastException e) {
-                    // I don't actually expect a ClassCastException, because
-                    // type S isn't specialized here.
-                    silentClose();
-                    throw e;
+                } catch (Throwable e) {
+                    throw cleanup(e);
                 }
                 return true;
 
@@ -169,8 +141,8 @@ class ProcedureCursor<S> extends AbstractCursor<S> implements ProcedureOpCodes {
         throw new NoSuchElementException();
     }
 
-    private FetchException cleanup(FetchException cause) throws FetchException {
+    private FetchException cleanup(Throwable cause) throws FetchException {
         silentClose();
-        throw cause;
+        throw ClientStorage.toFetchException(cause);
     }
 }

@@ -119,12 +119,8 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
     public void truncate() throws PersistException {
         try {
             mStorageProxy.mStorage.truncate(mRepository.localTransactionScope().getTxn());
-        } catch (PersistException e) {
-            throw e;
-        } catch (RuntimeException e) {
-            throw e;
         } catch (Exception e) {
-            throw new PersistException(e);
+            throw toPersistException(e);
         }
     }
 
@@ -184,9 +180,9 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             Pipe pipe = proxy.mStorage.tryLoad(txn, null);
             try {
                 proxy.mWriter.writeForLoad(storable, pipe.getOutputStream());
-                RepositoryException ex = (RepositoryException) pipe.readThrowable();
+                Throwable ex = pipe.readThrowable();
                 if (ex != null) {
-                    throw ex.toFetchException();
+                    throw toFetchException(ex);
                 }
                 if (pipe.readBoolean()) {
                     storable.readFrom(pipe.getInputStream());
@@ -196,12 +192,8 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             } finally {
                 pipe.close();
             }
-        } catch (FetchException e) {
-            throw e;
-        } catch (RuntimeException e) {
-            throw e;
         } catch (Exception e) {
-            throw new FetchException(e);
+            throw toFetchException(e);
         }
     }
 
@@ -217,9 +209,9 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             Pipe pipe = proxy.mStorage.tryInsert(txn, null);
             try {
                 proxy.mWriter.writeForInsert(storable, pipe.getOutputStream());
-                RepositoryException ex = (RepositoryException) pipe.readThrowable();
+                Throwable ex = pipe.readThrowable();
                 if (ex != null) {
-                    throw ex.toPersistException();
+                    throw toPersistException(ex);
                 }
                 int result = pipe.readByte();
                 switch (result) {
@@ -234,12 +226,8 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             } finally {
                 pipe.close();
             }
-        } catch (PersistException e) {
-            throw e;
-        } catch (RuntimeException e) {
-            throw e;
         } catch (Exception e) {
-            throw new PersistException(e);
+            throw toPersistException(e);
         }
     }
 
@@ -255,9 +243,9 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             Pipe pipe = proxy.mStorage.tryUpdate(txn, null);
             try {
                 proxy.mWriter.writeForUpdate(storable, pipe.getOutputStream());
-                RepositoryException ex = (RepositoryException) pipe.readThrowable();
+                Throwable ex = pipe.readThrowable();
                 if (ex != null) {
-                    throw ex.toPersistException();
+                    throw toPersistException(ex);
                 }
                 int result = pipe.readByte();
                 switch (result) {
@@ -272,12 +260,8 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             } finally {
                 pipe.close();
             }
-        } catch (PersistException e) {
-            throw e;
-        } catch (RuntimeException e) {
-            throw e;
         } catch (Exception e) {
-            throw new PersistException(e);
+            throw toPersistException(e);
         }
     }
 
@@ -293,20 +277,16 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             Pipe pipe = proxy.mStorage.tryDelete(txn, null);
             try {
                 proxy.mWriter.writeForDelete(storable, pipe.getOutputStream());
-                RepositoryException ex = (RepositoryException) pipe.readThrowable();
+                Throwable ex = pipe.readThrowable();
                 if (ex != null) {
-                    throw ex.toPersistException();
+                    throw toPersistException(ex);
                 }
                 return pipe.readBoolean();
             } finally {
                 pipe.close();
             }
-        } catch (PersistException e) {
-            throw e;
-        } catch (RuntimeException e) {
-            throw e;
         } catch (Exception e) {
-            throw new PersistException(e);
+            throw toPersistException(e);
         }
     }
 
@@ -314,12 +294,8 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
             return mStorageProxy.mStorage.queryCount(fv, txn);
-        } catch (FetchException e) {
-            throw e;
-        } catch (RuntimeException e) {
-            throw e;
         } catch (Exception e) {
-            throw new FetchException(e);
+            throw toFetchException(e);
         }
     }
 
@@ -359,14 +335,8 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
                 }
             }
             return cursor;
-        } catch (FetchException e) {
-            throw e;
-        } catch (RuntimeException e) {
-            throw e;
-        } catch (Error e) {
-            throw e;
         } catch (Throwable e) {
-            throw new FetchException(e);
+            throw toFetchException(e);
         }
     }
 
@@ -379,9 +349,9 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
 
             Pipe pipe = mStorageProxy.mStorage.queryLoadOne(fv, txn, null);
             try {
-                RepositoryException ex = (RepositoryException) pipe.readThrowable();
+                Throwable ex = pipe.readThrowable();
                 if (ex != null) {
-                    throw ex.toFetchException();
+                    throw toFetchException(ex);
                 }
                 S storable = prepare();
                 storable.readFrom(pipe.getInputStream());
@@ -389,12 +359,8 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             } finally {
                 pipe.close();
             }
-        } catch (FetchException e) {
-            throw e;
-        } catch (RuntimeException e) {
-            throw e;
         } catch (Exception e) {
-            throw new FetchException(e);
+            throw toFetchException(e);
         }
     }
 
@@ -407,9 +373,9 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
 
             Pipe pipe = mStorageProxy.mStorage.queryTryLoadOne(fv, txn, null);
             try {
-                RepositoryException ex = (RepositoryException) pipe.readThrowable();
+                Throwable ex = pipe.readThrowable();
                 if (ex != null) {
-                    throw ex.toFetchException();
+                    throw toFetchException(ex);
                 }
                 if (pipe.readBoolean()) {
                     S storable = prepare();
@@ -420,12 +386,8 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
             } finally {
                 pipe.close();
             }
-        } catch (FetchException e) {
-            throw e;
-        } catch (RuntimeException e) {
-            throw e;
         } catch (Exception e) {
-            throw new FetchException(e);
+            throw toFetchException(e);
         }
     }
 
@@ -433,12 +395,8 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
         try {
             mStorageProxy.mStorage.queryDeleteOne
                 (fv, mRepository.localTransactionScope().getTxn());
-        } catch (FetchException e) {
-            throw e.toPersistException();
-        } catch (RuntimeException e) {
-            throw e;
         } catch (Exception e) {
-            throw new PersistException(e);
+            throw toPersistException(e);
         }
     }
 
@@ -446,12 +404,8 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
         try {
             return mStorageProxy.mStorage.queryTryDeleteOne
                 (fv, mRepository.localTransactionScope().getTxn());
-        } catch (FetchException e) {
-            throw e.toPersistException();
-        } catch (RuntimeException e) {
-            throw e;
         } catch (Exception e) {
-            throw new PersistException(e);
+            throw toPersistException(e);
         }
     }
 
@@ -459,12 +413,8 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
         try {
             mStorageProxy.mStorage.queryDeleteAll
                 (fv, mRepository.localTransactionScope().getTxn());
-        } catch (FetchException e) {
-            throw e.toPersistException();
-        } catch (RuntimeException e) {
-            throw e;
         } catch (Exception e) {
-            throw new PersistException(e);
+            throw toPersistException(e);
         }
     }
 
@@ -513,6 +463,51 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
 
         mStorageProxy = new StorageProxy<S>
             (transport.getProtocolVersion(), storage, writer, supported);
+    }
+
+    /**
+     * @return RepositoryException or wrapped RepositoryException
+     * @throws unchecked exception
+     */
+    static RepositoryException toRepositoryException(Throwable e) {
+        throwIfUnchecked(e);
+        if (e instanceof RepositoryException) {
+            return (RepositoryException) e;
+        }
+        return new RepositoryException(e);
+    }
+
+    /**
+     * @return FetchException or wrapped FetchException
+     * @throws unchecked exception
+     */
+    static FetchException toFetchException(Throwable e) {
+        throwIfUnchecked(e);
+        if (e instanceof RepositoryException) {
+            return ((RepositoryException) e).toFetchException();
+        }
+        return new FetchException(e);
+    }
+
+    /**
+     * @return PersistException or wrapped PersistException
+     * @throws unchecked exception
+     */
+    static PersistException toPersistException(Throwable e) {
+        throwIfUnchecked(e);
+        if (e instanceof RepositoryException) {
+            return ((RepositoryException) e).toPersistException();
+        }
+        return new PersistException(e);
+    }
+
+    static void throwIfUnchecked(Throwable e) {
+        if (e instanceof RuntimeException) {
+            throw (RuntimeException) e;
+        }
+        if (e instanceof Error) {
+            throw (Error) e;
+        }
     }
 
     public static interface InstanceFactory {
