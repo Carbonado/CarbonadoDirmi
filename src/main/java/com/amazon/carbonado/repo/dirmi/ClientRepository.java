@@ -30,6 +30,7 @@ import org.cojen.dirmi.Unreferenced;
 
 import org.cojen.dirmi.util.Wrapper;
 
+import com.amazon.carbonado.MalformedTypeException;
 import com.amazon.carbonado.Repository;
 import com.amazon.carbonado.RepositoryException;
 import com.amazon.carbonado.Storable;
@@ -241,88 +242,14 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction>
         throws RepositoryException
     {
         Layout localLayout = ReconstructedCache.THE.layoutFor(type);
-        final StorableTypeTransport transport = new StorableTypeTransport(type, localLayout);
-
-        class Response implements RemoteRepository.StorageResponse, Unreferenced {
-            private RemoteStorageTransport mStorage;
-            private Throwable mException;
-            private boolean mNotified;
-
-            @Override
-            public synchronized void complete(RemoteStorageTransport storage) {
-                mStorage = storage;
-                mNotified = true;
-                notify();
-            }
-
-            @Override
-            public synchronized void exception(Throwable cause) {
-                mException = cause;
-                mNotified = true;
-                notify();
-            }
-
-            @Override
-            public synchronized void unreferenced() {
-                mNotified = true;
-                notify();
-            }
-
-            synchronized RemoteStorageTransport getResponse() throws RepositoryException {
-                try {
-                    while (!mNotified) {
-                        wait();
-                    }
-                } catch (InterruptedException e) {
-                    throw new RepositoryException(e);
-                }
-
-                if (mStorage != null) {
-                    return mStorage;
-                }
-
-                if (mException == null) {
-                    // Assume unreferenced was called and use alternate API,
-                    // for the sole purpose of generating an exception which
-                    // indicates that the remote connection was lost.
-                    return remote.storageFor(transport);
-                }
-
-                if (mException instanceof RepositoryException) {
-                    throw (RepositoryException) mException;
-                }
-
-                if (mException instanceof ClassNotFoundException) {
-                    String message = mException.getMessage();
-                    if (message != null && message.indexOf(type.getName()) >= 0) {
-                        throw new SupportException
-                            ("Remote server cannot find Storable class: " + type.getName());
-                    }
-                }
-
-                throw new RepositoryException(mException);
-            }
-        }
-
-        Response response = new Response();
-
-        Pipe pipe;
+        StorableTypeTransport transport = new StorableTypeTransport(type, localLayout);
         try {
-            pipe = remote.storageRequest(response, null);
-        } catch (UnimplementedMethodException e) {
-            // Fallback to old API.
             return remote.storageFor(transport);
-        } catch (RemoteException e) {
-            throw new RepositoryException(e);
+        } catch (MalformedTypeException e) {
+            MalformedTypeException e2 = new MalformedTypeException
+                (type, e.getMessage() + ", or server doesn't have Storable definition");
+            e2.setStackTrace(e.getStackTrace());
+            throw e2;
         }
-
-        try {
-            pipe.writeObject(transport);
-            pipe.close();
-        } catch (IOException e) {
-            throw new RepositoryException(e);
-        }
-
-        return response.getResponse();
     }
 }

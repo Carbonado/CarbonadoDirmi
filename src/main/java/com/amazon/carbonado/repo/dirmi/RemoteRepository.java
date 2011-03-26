@@ -28,6 +28,7 @@ import org.cojen.dirmi.Batched;
 import org.cojen.dirmi.CallMode;
 import org.cojen.dirmi.Pipe;
 import org.cojen.dirmi.RemoteFailure;
+import org.cojen.dirmi.Timeout;
 
 import com.amazon.carbonado.IsolationLevel;
 import com.amazon.carbonado.RepositoryException;
@@ -46,9 +47,11 @@ public interface RemoteRepository extends Remote {
     String getName() throws RepositoryException;
 
     @RemoteFailure(exception=RepositoryException.class)
+    @Timeout(10000) // 10 seconds
     RemoteStorageTransport storageFor(StorableTypeTransport transport)
         throws RepositoryException;
 
+    @Deprecated
     @Asynchronous(CallMode.REQUEST_REPLY)
     Pipe storageRequest(StorageResponse response, Pipe pipe) throws RemoteException;
 
