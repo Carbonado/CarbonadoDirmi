@@ -76,7 +76,7 @@ class RemoteStorageServer implements RemoteStorage {
             Storable s = mStorage.prepare();
             try {
                 s.readFrom(pipe.getInputStream());
-            } catch (SupportException e) {
+            } catch (Throwable e) {
                 pipe.writeThrowable(e);
                 return null;
             }
@@ -122,7 +122,7 @@ class RemoteStorageServer implements RemoteStorage {
             Storable s = mStorage.prepare();
             try {
                 s.readFrom(pipe.getInputStream());
-            } catch (SupportException e) {
+            } catch (Throwable e) {
                 pipe.writeThrowable(e);
                 return null;
             }
@@ -169,7 +169,7 @@ class RemoteStorageServer implements RemoteStorage {
             Storable s = mStorage.prepare();
             try {
                 s.readFrom(pipe.getInputStream());
-            } catch (SupportException e) {
+            } catch (Throwable e) {
                 pipe.writeThrowable(e);
                 return null;
             }
@@ -216,7 +216,7 @@ class RemoteStorageServer implements RemoteStorage {
             Storable s = mStorage.prepare();
             try {
                 s.readFrom(pipe.getInputStream());
-            } catch (SupportException e) {
+            } catch (Throwable e) {
                 pipe.writeThrowable(e);
                 return null;
             }
