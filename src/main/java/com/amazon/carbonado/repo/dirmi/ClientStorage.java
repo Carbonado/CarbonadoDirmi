@@ -84,6 +84,15 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
 
         EnumSet<MasterFeature> features = EnumSet.noneOf(MasterFeature.class);
 
+        try {
+            // Prefer that primary key check be performed on server, to allow
+            // it to fill in sequence generated values.
+            features.add(MasterFeature.INSERT_NO_CHECK_PRIMARY_PK);
+        } catch (NoSuchFieldError e) {
+            // Using older version of Carbonado, and so primary key check will
+            // be performed locally instead.
+        }
+
         Class<? extends S> delegateStorableClass =
             DelegateStorableGenerator.getDelegateClass(type, features);
 
