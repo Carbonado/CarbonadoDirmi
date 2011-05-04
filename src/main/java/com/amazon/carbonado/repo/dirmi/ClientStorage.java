@@ -299,26 +299,40 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
         }
     }
 
-    long queryCount(FilterValues<S> fv) throws FetchException {
+    long queryCount(FilterValues<S> fv, Query.Controller controller) throws FetchException {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
-            return mStorageProxy.mStorage.queryCount(fv, txn);
+            RemoteStorage remote = mStorageProxy.mStorage;
+            // Select remote method for compatibilty with older server.
+            return controller == null
+                ? remote.queryCount(fv, txn)
+                : remote.queryCount(fv, txn, controller);
         } catch (Exception e) {
             throw toFetchException(e);
         }
     }
 
-    ClientCursor<S> queryFetch(FilterValues fv, OrderingList orderBy, Long from, Long to)
+    ClientCursor<S> queryFetch(FilterValues fv, OrderingList orderBy, Long from, Long to,
+                               Query.Controller controller)
         throws FetchException
     {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
-            Pipe pipe = mStorageProxy.mStorage.queryFetch(fv, orderBy, from, to, txn, null);
+
+            StorageProxy proxy = mStorageProxy;
+            RemoteStorage remote = proxy.mStorage;
+
+            // Select remote method for compatibilty with older server.
+            Pipe pipe = controller == null
+                ? remote.queryFetch(fv, orderBy, from, to, txn, null)
+                : remote.queryFetch(fv, orderBy, from, to, txn, null, controller);
+
             ClientCursor<S> cursor = new ClientCursor<S>(this, pipe);
-            if (txn != null && mStorageProxy.mProtocolVersion >= 0) {
+
+            if (txn != null && proxy.mProtocolVersion >= 0) {
                 // Block until server has created it's cursor against the
                 // transaction we just passed to it.
-                if (mStorageProxy.mProtocolVersion >= 1) {
+                if (proxy.mProtocolVersion >= 1) {
                     // Read start marker.
                     byte op = pipe.readByte();
                     if (op != RemoteStorageServer.CURSOR_START) {
@@ -349,14 +363,20 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
         }
     }
 
-    S queryLoadOne(FilterValues fv) throws FetchException {
+    S queryLoadOne(FilterValues fv, Query.Controller controller) throws FetchException {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
             if (txn instanceof FailedTransaction) {
                 throw new FetchException(TXN_INVALID_MSG);
             }
 
-            Pipe pipe = mStorageProxy.mStorage.queryLoadOne(fv, txn, null);
+            RemoteStorage remote = mStorageProxy.mStorage;
+
+            // Select remote method for compatibilty with older server.
+            Pipe pipe = controller == null
+                ? remote.queryLoadOne(fv, txn, null)
+                : remote.queryLoadOne(fv, txn, null, controller);
+
             try {
                 Throwable ex = pipe.readThrowable();
                 if (ex != null) {
@@ -373,14 +393,20 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
         }
     }
 
-    S queryTryLoadOne(FilterValues fv) throws FetchException {
+    S queryTryLoadOne(FilterValues fv, Query.Controller controller) throws FetchException {
         try {
             RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
             if (txn instanceof FailedTransaction) {
                 throw new FetchException(TXN_INVALID_MSG);
             }
 
-            Pipe pipe = mStorageProxy.mStorage.queryTryLoadOne(fv, txn, null);
+            RemoteStorage remote = mStorageProxy.mStorage;
+
+            // Select remote method for compatibilty with older server.
+            Pipe pipe = controller == null
+                ? remote.queryTryLoadOne(fv, txn, null)
+                : remote.queryTryLoadOne(fv, txn, null, controller);
+
             try {
                 Throwable ex = pipe.readThrowable();
                 if (ex != null) {
@@ -400,28 +426,46 @@ class ClientStorage<S extends Storable> implements Storage<S>, DelegateSupport<S
         }
     }
 
-    void queryDeleteOne(FilterValues fv) throws PersistException {
+    void queryDeleteOne(FilterValues fv, Query.Controller controller) throws PersistException {
         try {
-            mStorageProxy.mStorage.queryDeleteOne
-                (fv, mRepository.localTransactionScope().getTxn());
+            RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
+            RemoteStorage remote = mStorageProxy.mStorage;
+            // Select remote method for compatibilty with older server.
+            if (controller == null) {
+                remote.queryDeleteOne(fv, txn);
+            } else {
+                remote.queryDeleteOne(fv, txn, controller);
+            }
         } catch (Exception e) {
             throw toPersistException(e);
         }
     }
 
-    boolean queryTryDeleteOne(FilterValues fv) throws PersistException {
+    boolean queryTryDeleteOne(FilterValues fv, Query.Controller controller)
+        throws PersistException
+    {
         try {
-            return mStorageProxy.mStorage.queryTryDeleteOne
-                (fv, mRepository.localTransactionScope().getTxn());
+            RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
+            RemoteStorage remote = mStorageProxy.mStorage;
+            // Select remote method for compatibilty with older server.
+            return controller == null
+                ? remote.queryTryDeleteOne(fv, txn)
+                : remote.queryTryDeleteOne(fv, txn, controller);
         } catch (Exception e) {
             throw toPersistException(e);
         }
     }
 
-    void queryDeleteAll(FilterValues fv) throws PersistException {
+    void queryDeleteAll(FilterValues fv, Query.Controller controller) throws PersistException {
         try {
-            mStorageProxy.mStorage.queryDeleteAll
-                (fv, mRepository.localTransactionScope().getTxn());
+            RemoteTransaction txn = mRepository.localTransactionScope().getTxn();
+            RemoteStorage remote = mStorageProxy.mStorage;
+            // Select remote method for compatibilty with older server.
+            if (controller == null) {
+                remote.queryDeleteAll(fv, txn);
+            } else {
+                remote.queryDeleteAll(fv, txn, controller);
+            }
         } catch (Exception e) {
             throw toPersistException(e);
         }

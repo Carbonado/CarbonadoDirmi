@@ -26,7 +26,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.cojen.dirmi.Pipe;
 import org.cojen.dirmi.UnimplementedMethodException;
-import org.cojen.dirmi.Unreferenced;
 
 import org.cojen.dirmi.util.Wrapper;
 

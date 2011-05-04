@@ -24,6 +24,7 @@ import com.amazon.carbonado.Cursor;
 import com.amazon.carbonado.FetchException;
 import com.amazon.carbonado.IsolationLevel;
 import com.amazon.carbonado.PersistException;
+import com.amazon.carbonado.Query;
 import com.amazon.carbonado.RepositoryException;
 import com.amazon.carbonado.Storable;
 import com.amazon.carbonado.Transaction;
@@ -58,27 +59,52 @@ class ClientQuery<S extends Storable> extends StandardQuery<S> implements QueryE
 
     @Override
     public S loadOne() throws FetchException {
-        return mQueryFactory.clientStorage().queryLoadOne(getFilterValues());
+        return loadOne(null);
+    }
+
+    @Override
+    public S loadOne(Controller controller) throws FetchException {
+        return mQueryFactory.clientStorage().queryLoadOne(getFilterValues(), controller);
     }
 
     @Override
     public S tryLoadOne() throws FetchException {
-        return mQueryFactory.clientStorage().queryTryLoadOne(getFilterValues());
+        return tryLoadOne(null);
+    }
+
+    @Override
+    public S tryLoadOne(Controller controller) throws FetchException {
+        return mQueryFactory.clientStorage().queryTryLoadOne(getFilterValues(), controller);
     }
 
     @Override
     public void deleteOne() throws PersistException {
-        mQueryFactory.clientStorage().queryDeleteOne(getFilterValues());
+        deleteOne(null);
+    }
+
+    @Override
+    public void deleteOne(Controller controller) throws PersistException {
+        mQueryFactory.clientStorage().queryDeleteOne(getFilterValues(), controller);
     }
 
     @Override
     public boolean tryDeleteOne() throws PersistException {
-        return mQueryFactory.clientStorage().queryTryDeleteOne(getFilterValues());
+        return tryDeleteOne(null);
+    }
+
+    @Override
+    public boolean tryDeleteOne(Controller controller) throws PersistException {
+        return mQueryFactory.clientStorage().queryTryDeleteOne(getFilterValues(), controller);
     }
 
     @Override
     public void deleteAll() throws PersistException {
-        mQueryFactory.clientStorage().queryDeleteAll(getFilterValues());
+        deleteAll(null);
+    }
+
+    @Override
+    public void deleteAll(Controller controller) throws PersistException {
+        mQueryFactory.clientStorage().queryDeleteAll(getFilterValues(), controller);
     }
 
     @Override
@@ -126,28 +152,58 @@ class ClientQuery<S extends Storable> extends StandardQuery<S> implements QueryE
             return ClientQuery.this.getStorableType();
         }
 
+        @Override
         public Cursor<S> fetch(FilterValues<S> values) throws FetchException {
-            return mQueryFactory.clientStorage().queryFetch(values, mOrdering, null, null);
+            return fetch(values, null);
         }
 
+        @Override
+        public Cursor<S> fetch(FilterValues<S> values, Query.Controller controller)
+            throws FetchException
+        {
+            return mQueryFactory.clientStorage()
+                .queryFetch(values, mOrdering, null, null, controller);
+        }
+
+        @Override
         public Cursor<S> fetchSlice(FilterValues<S> values, long from, Long to)
             throws FetchException
         {
-            return mQueryFactory.clientStorage().queryFetch(values, mOrdering, from, to);
+            return fetchSlice(values, from, to, null);
         }
 
+        @Override
+        public Cursor<S> fetchSlice(FilterValues<S> values, long from, Long to,
+                                    Query.Controller controller)
+            throws FetchException
+        {
+            return mQueryFactory.clientStorage()
+                .queryFetch(values, mOrdering, from, to, controller);
+        }
+
+        @Override
         public long count(FilterValues<S> values) throws FetchException {
-            return mQueryFactory.clientStorage().queryCount(values);
+            return count(values, null);
         }
 
+        @Override
+        public long count(FilterValues<S> values, Query.Controller controller)
+            throws FetchException
+        {
+            return mQueryFactory.clientStorage().queryCount(values, controller);
+        }
+
+        @Override
         public Filter<S> getFilter() {
             return mFilter;
         }
 
+        @Override
         public OrderingList<S> getOrdering() {
             return mOrdering;
         }
 
+        @Override
         public boolean printNative(Appendable app,
                                    int indentLevel,
                                    FilterValues<S> values)
@@ -166,6 +222,7 @@ class ClientQuery<S extends Storable> extends StandardQuery<S> implements QueryE
             }
         }
 
+        @Override
         public boolean printPlan(Appendable app,
                                  int indentLevel,
                                  FilterValues<S> values)

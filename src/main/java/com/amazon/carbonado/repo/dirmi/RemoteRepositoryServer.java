@@ -60,11 +60,9 @@ public class RemoteRepositoryServer implements RemoteRepository {
     }
 
     final Repository mRepository;
-    private Map<StorableLayoutKey, RemoteStorage> mStorageMap;
 
     private RemoteRepositoryServer(Repository repo) {
         mRepository = repo;
-        mStorageMap = new HashMap<StorableLayoutKey, RemoteStorage>();
     }
 
     public String getName() {
@@ -77,22 +75,18 @@ public class RemoteRepositoryServer implements RemoteRepository {
         int protocolVersion = transport.getProtocolVersion();
         Class storableType = transport.getStorableType();
         Layout clientLayout = transport.getLayout();
-        StorableLayoutKey key = new StorableLayoutKey(protocolVersion, storableType, clientLayout);
 
         RemoteStorage remoteStorage;
-        synchronized (mStorageMap) {
-            remoteStorage = mStorageMap.get(key);
-            if (remoteStorage == null) {
-                Storage storage = mRepository.storageFor(storableType);
-                StorableWriter writer =
-                    ReconstructedCache.THE.writerFor(storableType, clientLayout);
-                boolean writeStartMarker = protocolVersion == 1;
-                remoteStorage = new RemoteStorageServer(storage, writer, writeStartMarker);
-                mStorageMap.put(key, remoteStorage);
-            }
+        {
+            Storage storage = mRepository.storageFor(storableType);
+            StorableWriter writer =
+                ReconstructedCache.THE.writerFor(storableType, clientLayout);
+            boolean writeStartMarker = protocolVersion == 1;
+            remoteStorage = new RemoteStorageServer(storage, writer, writeStartMarker);
         }
 
         Layout localLayout = ReconstructedCache.THE.layoutFor(storableType);
+
         return new RemoteStorageTransport
             (protocolVersion, storableType, localLayout, remoteStorage);
     }

@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.cojen.dirmi.Pipe;
+import org.cojen.dirmi.Unreferenced;
 
 import com.amazon.carbonado.CorruptEncodingException;
 import com.amazon.carbonado.Cursor;
@@ -43,11 +44,14 @@ import com.amazon.carbonado.filter.FilterValues;
 import com.amazon.carbonado.qe.OrderingList;
 
 /**
- * 
+ * Non-sharable remote access to a Storable type. Non-sharable means that an
+ * instance of this class can only be used by one remote Session. When the
+ * Session is closed, this instance is unreferenced and so all in-flight
+ * queries must stop.
  *
  * @author Brian S O'Neill
  */
-class RemoteStorageServer implements RemoteStorage {
+class RemoteStorageServer implements RemoteStorage, Unreferenced {
     static final byte STORABLE_CHANGED = 0;
     static final byte STORABLE_UNCHANGED = 1;
     static final byte STORABLE_CHANGE_FAILED = 2;
@@ -63,14 +67,35 @@ class RemoteStorageServer implements RemoteStorage {
     private final StorableWriter mWriter;
     private final boolean mWriteStartMarker;
 
+    private final UnreferencedController mUnrefController;
+
     RemoteStorageServer(Storage storage, StorableWriter writer, boolean writeStartMarker)
         throws SupportException
     {
         mStorage = storage;
         mWriter = writer;
         mWriteStartMarker = writeStartMarker;
+
+        UnreferencedController unrefController;
+        try {
+            unrefController = new UnreferencedController();
+
+            // Check that Query.Controller feature works locally.
+            try {
+                storage.query().exists(unrefController);
+            } catch (FetchException e) {
+                // Don't worry about this right now.
+            }
+        } catch (LinkageError e) {
+            // Must be using version of Carbonado or dependency which doesn't
+            // support Query.Controller.
+            unrefController = null;
+        }
+
+        mUnrefController = unrefController;
     }
 
+    @Override
     public Pipe tryLoad(RemoteTransaction txn, Pipe pipe) {
         try {
             Storable s = mStorage.prepare();
@@ -117,6 +142,7 @@ class RemoteStorageServer implements RemoteStorage {
         return null;
     }
 
+    @Override
     public Pipe tryInsert(RemoteTransaction txn, Pipe pipe) {
         try {
             Storable s = mStorage.prepare();
@@ -164,6 +190,7 @@ class RemoteStorageServer implements RemoteStorage {
         return null;
     }
 
+    @Override
     public Pipe tryUpdate(RemoteTransaction txn, Pipe pipe) {
         try {
             Storable s = mStorage.prepare();
@@ -211,6 +238,7 @@ class RemoteStorageServer implements RemoteStorage {
         return null;
     }
 
+    @Override
     public Pipe tryDelete(RemoteTransaction txn, Pipe pipe) {
         try {
             Storable s = mStorage.prepare();
@@ -249,18 +277,38 @@ class RemoteStorageServer implements RemoteStorage {
         return null;
     }
 
+    @Override
     public long queryCount(FilterValues fv, RemoteTransaction txn) throws FetchException {
+        return queryCount(fv, txn, null);
+    }
+
+    @Override
+    public long queryCount(FilterValues fv, RemoteTransaction txn,
+                           Query.Controller controller)
+        throws FetchException
+    {
+        controller = createController(controller);
         attachFetch(txn);
         try {
-            return buildQuery(fv, null).count();
+            return buildQuery(fv, null).count(controller);
         } finally {
             detach(txn);
         }
     }
 
+    @Override
     public Pipe queryFetch(FilterValues fv, OrderingList orderBy, Long from, Long to,
                            RemoteTransaction txn, Pipe pipe)
     {
+        return queryFetch(fv, orderBy, from, to, txn, pipe, null);
+    }
+ 
+    @Override
+    public Pipe queryFetch(FilterValues fv, OrderingList orderBy, Long from, Long to,
+                           RemoteTransaction txn, Pipe pipe,
+                           Query.Controller controller)
+    {
+        controller = createController(controller);
         try {
             OutputStream out = pipe.getOutputStream();
             try {
@@ -271,12 +319,12 @@ class RemoteStorageServer implements RemoteStorage {
                 try {
                     if (from == null) {
                         if (to == null) {
-                            cursor = query.fetch();
+                            cursor = query.fetch(controller);
                         } else {
-                            cursor = query.fetchSlice(0, to);
+                            cursor = query.fetchSlice(0, to, controller);
                         }
                     } else {
-                        cursor = query.fetchSlice(from, to);
+                        cursor = query.fetchSlice(from, to, controller);
                     }
 
                     try {
@@ -353,12 +401,21 @@ class RemoteStorageServer implements RemoteStorage {
         return null;
     }
 
+    @Override
     public Pipe queryLoadOne(FilterValues fv, RemoteTransaction txn, Pipe pipe) {
+        return queryLoadOne(fv, txn, pipe, null);
+    }
+
+    @Override
+    public Pipe queryLoadOne(FilterValues fv, RemoteTransaction txn, Pipe pipe,
+                             Query.Controller controller)
+    {
+        controller = createController(controller);
         try {
             if (attachFetch(txn, pipe)) {
                 Storable s;
                 try {
-                    s = buildQuery(fv, null).loadOne();
+                    s = buildQuery(fv, null).loadOne(controller);
                 } catch (Throwable e) {
                     pipe.writeThrowable(e);
                     return null;
@@ -385,12 +442,21 @@ class RemoteStorageServer implements RemoteStorage {
         return null;
     }
 
+    @Override
     public Pipe queryTryLoadOne(FilterValues fv, RemoteTransaction txn, Pipe pipe) {
+        return queryTryLoadOne(fv, txn, pipe, null);
+    }
+
+    @Override
+    public Pipe queryTryLoadOne(FilterValues fv, RemoteTransaction txn, Pipe pipe,
+                                Query.Controller controller)
+    {
+        controller = createController(controller);
         try {
             if (attachFetch(txn, pipe)) {
                 Storable s;
                 try {
-                    s = buildQuery(fv, null).tryLoadOne();
+                    s = buildQuery(fv, null).tryLoadOne(controller);
                 } catch (Throwable e) {
                     pipe.writeThrowable(e);
                     return null;
@@ -423,41 +489,72 @@ class RemoteStorageServer implements RemoteStorage {
         return null;
     }
 
+    @Override
     public void queryDeleteOne(FilterValues fv, RemoteTransaction txn)
         throws FetchException, PersistException
     {
+        queryDeleteOne(fv, txn, null);
+    }
+
+    @Override
+    public void queryDeleteOne(FilterValues fv, RemoteTransaction txn,
+                               Query.Controller controller)
+        throws FetchException, PersistException
+    {
+        controller = createController(controller);
         attachPersist(txn);
         try {
             Query query = buildQuery(fv, null);
-            query.deleteOne();
+            query.deleteOne(controller);
         } finally {
             detach(txn);
         }
     }
 
+    @Override
     public boolean queryTryDeleteOne(FilterValues fv, RemoteTransaction txn)
         throws FetchException, PersistException
     {
+        return queryTryDeleteOne(fv, txn, null);
+    }
+
+    @Override
+    public boolean queryTryDeleteOne(FilterValues fv, RemoteTransaction txn,
+                                     Query.Controller controller)
+        throws FetchException, PersistException
+    {
+        controller = createController(controller);
         attachPersist(txn);
         try {
             Query query = buildQuery(fv, null);
-            return query.tryDeleteOne();
+            return query.tryDeleteOne(controller);
         } finally {
             detach(txn);
         }
     }
 
+    @Override
     public void queryDeleteAll(FilterValues fv, RemoteTransaction txn)
         throws FetchException, PersistException
     {
+        queryDeleteAll(fv, txn, null);
+    }
+
+    @Override
+    public void queryDeleteAll(FilterValues fv, RemoteTransaction txn,
+                               Query.Controller controller)
+        throws FetchException, PersistException
+    {
+        controller = createController(controller);
         attachPersist(txn);
         try {
-            buildQuery(fv, null).deleteAll();
+            buildQuery(fv, null).deleteAll(controller);
         } finally {
             detach(txn);
         }
     }
 
+    @Override
     public String queryPrintNative(FilterValues fv, OrderingList orderBy, int indentLevel)
         throws FetchException
     {
@@ -473,6 +570,7 @@ class RemoteStorageServer implements RemoteStorage {
         return builder.toString();
     }
 
+    @Override
     public String queryPrintPlan(FilterValues fv, OrderingList orderBy, int indentLevel)
         throws FetchException
     {
@@ -488,6 +586,7 @@ class RemoteStorageServer implements RemoteStorage {
         return builder.toString();
     }
 
+    @Override
     public void truncate(RemoteTransaction txn) throws PersistException {
         attachPersist(txn);
         try {
@@ -497,6 +596,7 @@ class RemoteStorageServer implements RemoteStorage {
         }
     }
 
+    @Override
     public Set<String> getPropertySupport(String... propertyNames) {
         Storable s = mStorage.prepare();
         Set<String> supported = null;
@@ -608,7 +708,22 @@ class RemoteStorageServer implements RemoteStorage {
         return query;
     }
 
+    private Query.Controller createController(Query.Controller controller) {
+        UnreferencedController unrefController = mUnrefController;
+        // Return no controller if feature not fully supported, otherwise merge.
+        return unrefController == null ? null : unrefController.merge(controller);
+    }
+
     StorableWriter storableWriter() {
         return mWriter;
+    }
+
+    // Required by Unreferenced interface.
+    @Override
+    public void unreferenced() {
+        UnreferencedController unrefController = mUnrefController;
+        if (unrefController != null) {
+            unrefController.mUnreferenced = true;
+        }
     }
 }

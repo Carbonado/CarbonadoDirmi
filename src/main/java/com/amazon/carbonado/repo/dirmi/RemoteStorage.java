@@ -29,6 +29,7 @@ import org.cojen.dirmi.RemoteFailure;
 
 import com.amazon.carbonado.FetchException;
 import com.amazon.carbonado.PersistException;
+import com.amazon.carbonado.Query;
 
 import com.amazon.carbonado.filter.FilterValues;
 
@@ -104,6 +105,17 @@ public interface RemoteStorage extends Remote {
     long queryCount(FilterValues fv, RemoteTransaction txn) throws FetchException;
 
     /**
+     * Counts storables for this storage.
+     *
+     * @param fv optional
+     * @param txn optional
+     * @param controller optional
+     */
+    @RemoteFailure(exception=FetchException.class)
+    long queryCount(FilterValues fv, RemoteTransaction txn, Query.Controller controller)
+        throws FetchException;
+
+    /**
      * Fetches storables for this storage.
      *
      * @param fv optional
@@ -116,6 +128,22 @@ public interface RemoteStorage extends Remote {
     @RemoteFailure(exception=FetchException.class)
     Pipe queryFetch(FilterValues fv, OrderingList orderBy, Long from, Long to,
                     RemoteTransaction txn, Pipe pipe)
+        throws FetchException;
+
+    /**
+     * Fetches storables for this storage.
+     *
+     * @param fv optional
+     * @param orderBy optional
+     * @param from optional
+     * @param to optional
+     * @param txn optional
+     * @param controller optional
+     */
+    @Asynchronous(CallMode.REQUEST_REPLY)
+    @RemoteFailure(exception=FetchException.class)
+    Pipe queryFetch(FilterValues fv, OrderingList orderBy, Long from, Long to,
+                    RemoteTransaction txn, Pipe pipe, Query.Controller controller)
         throws FetchException;
 
     /**
@@ -133,10 +161,36 @@ public interface RemoteStorage extends Remote {
      *
      * @param fv optional
      * @param txn optional
+     * @param controller optional
+     */
+    @Asynchronous(CallMode.REQUEST_REPLY)
+    @RemoteFailure(exception=FetchException.class)
+    Pipe queryLoadOne(FilterValues fv, RemoteTransaction txn, Pipe pipe,
+                      Query.Controller controller)
+        throws FetchException;
+
+    /**
+     * Fetches one storable.
+     *
+     * @param fv optional
+     * @param txn optional
      */
     @Asynchronous(CallMode.REQUEST_REPLY)
     @RemoteFailure(exception=FetchException.class)
     Pipe queryTryLoadOne(FilterValues fv, RemoteTransaction txn, Pipe pipe) throws FetchException;
+
+    /**
+     * Fetches one storable.
+     *
+     * @param fv optional
+     * @param txn optional
+     * @param controller optional
+     */
+    @Asynchronous(CallMode.REQUEST_REPLY)
+    @RemoteFailure(exception=FetchException.class)
+    Pipe queryTryLoadOne(FilterValues fv, RemoteTransaction txn, Pipe pipe,
+                         Query.Controller controller)
+        throws FetchException;
 
     /**
      * Deletes one storable.
@@ -153,9 +207,31 @@ public interface RemoteStorage extends Remote {
      *
      * @param fv optional
      * @param txn optional
+     * @param controller optional
+     */
+    @RemoteFailure(exception=PersistException.class)
+    void queryDeleteOne(FilterValues fv, RemoteTransaction txn, Query.Controller controller)
+        throws FetchException, PersistException;
+
+    /**
+     * Deletes one storable.
+     *
+     * @param fv optional
+     * @param txn optional
      */
     @RemoteFailure(exception=PersistException.class)
     boolean queryTryDeleteOne(FilterValues fv, RemoteTransaction txn)
+        throws FetchException, PersistException;
+
+    /**
+     * Deletes one storable.
+     *
+     * @param fv optional
+     * @param txn optional
+     * @param controller optional
+     */
+    @RemoteFailure(exception=PersistException.class)
+    boolean queryTryDeleteOne(FilterValues fv, RemoteTransaction txn, Query.Controller controller)
         throws FetchException, PersistException;
 
     /**
@@ -166,6 +242,17 @@ public interface RemoteStorage extends Remote {
      */
     @RemoteFailure(exception=PersistException.class)
     void queryDeleteAll(FilterValues fv, RemoteTransaction txn)
+        throws FetchException, PersistException;
+
+    /**
+     * Deletes all matching storables.
+     *
+     * @param fv optional
+     * @param txn optional
+     * @param controller optional
+     */
+    @RemoteFailure(exception=PersistException.class)
+    void queryDeleteAll(FilterValues fv, RemoteTransaction txn, Query.Controller controller)
         throws FetchException, PersistException;
 
     /**

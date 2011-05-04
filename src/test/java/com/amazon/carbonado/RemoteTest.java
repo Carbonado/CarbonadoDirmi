@@ -394,6 +394,67 @@ public class RemoteTest {
     }
 
     @Test
+    public void queryTimeoutTest() throws Exception { 
+        Repository repo = MapRepositoryBuilder.newRepository();
+        Session[] pair = new Environment().newSessionPair();
+        pair[0].send(RemoteRepositoryServer.from(repo));
+        RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+        Repository clientRepo = ClientRepository.from(remoteRepo);
+
+        Storage<StorableTestVersioned> clientStorage =
+            clientRepo.storageFor(StorableTestVersioned.class);
+
+        for (int i=0; i<299; i++) {
+            StorableTestVersioned stb = clientStorage.prepare();
+            stb.setId(i);
+            stb.setStringProp("world");
+            stb.setIntProp(321);
+            stb.setLongProp(313244232323432L);
+            stb.setDoubleProp(1.423423);
+            stb.insert();
+        }
+
+        assertEquals(299, clientStorage.query().fetch(Query.Timeout.seconds(10)).toList().size());
+
+        try {
+            clientStorage.query().fetch(Query.Timeout.nanos(1)).toList();
+            fail();
+        } catch (FetchTimeoutException e) {
+        }
+    }
+
+    @Test
+    public void queryTimeoutTest2() throws Exception { 
+        Repository repo = MapRepositoryBuilder.newRepository();
+        Session[] pair = new Environment().newSessionPair();
+        pair[0].send(RemoteRepositoryServer.from(repo));
+        RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+        Repository clientRepo = ClientRepository.from(remoteRepo);
+
+        Storage<StorableTestVersioned> clientStorage =
+            clientRepo.storageFor(StorableTestVersioned.class);
+
+        for (int i=0; i<299; i++) {
+            StorableTestVersioned stb = clientStorage.prepare();
+            stb.setId(i);
+            stb.setStringProp("world");
+            stb.setIntProp(321);
+            stb.setLongProp(313244232323432L);
+            stb.setDoubleProp(1.423423);
+            stb.insert();
+        }
+
+        assertEquals(299, clientStorage.query().count());
+        assertEquals(299, clientStorage.query("stringProp != ?").with("x").count());
+
+        try {
+            clientStorage.query("stringProp != ?").with("x").count(Query.Timeout.nanos(1));
+            fail();
+        } catch (FetchTimeoutException e) {
+        }
+    }
+
+    @Test
     public void closingTest() throws Exception {
         Repository repo = MapRepositoryBuilder.newRepository();
         Session[] pair = new Environment().newSessionPair();
