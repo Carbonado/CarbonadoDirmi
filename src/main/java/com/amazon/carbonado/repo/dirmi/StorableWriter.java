@@ -88,6 +88,7 @@ abstract class StorableWriter<S extends Storable> {
             Storable target = mFactory.newInstance();
             mCopier.copyPrimaryKeyProperties(storable, target);
             mCopier.copyDirtyProperties(storable, target);
+            mCopier.copyVersionProperty(storable, target);
             target.writeTo(out);
         }
 
@@ -148,7 +149,7 @@ abstract class StorableWriter<S extends Storable> {
 
         @Override
         void writeForUpdate(S storable, OutputStream out) throws IOException, SupportException {
-            // TODO: just write the primary keys and dirty properties somehow
+            // TODO: just write the primary keys, dirty properties, and version property
             storable.writeTo(out);
         }
 
