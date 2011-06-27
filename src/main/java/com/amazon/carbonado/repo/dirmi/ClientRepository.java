@@ -108,13 +108,16 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction>
      * Storage and SequenceValueProducer references will be retained. 
      * All transactions that were in process will be broken invalid after the disconnect.
      */
-    public void reconnect(RemoteRepository remote) throws RepositoryException {
+    public synchronized void reconnect(RemoteRepository remote) throws RepositoryException {
+        mProcedureExecutor = null;
+
         for (Storage s : allStorage()) {
             if (s != null) {
                 ClientStorage curr = (ClientStorage) storageFor(s.getStorableType());
                 curr.reconnect(remoteStorageFor(remote, s.getStorableType()));
             }
         }
+
         for (String p : mSequenceNames.keySet()) {
             if (p != null) {
                 RemoteSequenceValueProducer producer = remote.getSequenceValueProducer(p);
@@ -128,6 +131,7 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction>
                 }
             }
         }
+
         mRepository = remote;
     }
 
