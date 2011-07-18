@@ -46,14 +46,27 @@ import com.amazon.carbonado.util.SoftValuedCache;
 class ReconstructedCache {
     static final ReconstructedCache THE = new ReconstructedCache();
 
+    // Keep a reference to LayoutFactory instance, since it generates classes,
+    // sometimes indirectly. Keeping the same instance prevents classes from
+    // being redefined. These classes might also be non-unloadable, leading to
+    // class loading memory leaks.
+    private final LayoutFactory mLayoutFactory;
+
     private final SoftValuedCache<StorableLayoutKey, Class> mCache;
 
     private ReconstructedCache() {
+        try {
+            mLayoutFactory = new LayoutFactory(MapRepositoryBuilder.newRepository());
+        } catch (RepositoryException e) {
+            // MapRepository shouldn't throw a RepositoryException.
+            throw new AssertionError(e);
+        }
+
         mCache = SoftValuedCache.newCache(3);
     }
 
     Layout layoutFor(Class<? extends Storable> type) throws RepositoryException {
-        return new LayoutFactory(MapRepositoryBuilder.newRepository()).layoutFor(type);
+        return mLayoutFactory.layoutFor(type);
     }
 
     /**
