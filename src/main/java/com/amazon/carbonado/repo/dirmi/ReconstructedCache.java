@@ -50,7 +50,7 @@ class ReconstructedCache {
     // sometimes indirectly. Keeping the same instance prevents classes from
     // being redefined. These classes might also be non-unloadable, leading to
     // class loading memory leaks.
-    private final LayoutFactory mLayoutFactory;
+    final LayoutFactory mLayoutFactory;
 
     private final SoftValuedCache<StorableLayoutKey, Class> mCache;
 

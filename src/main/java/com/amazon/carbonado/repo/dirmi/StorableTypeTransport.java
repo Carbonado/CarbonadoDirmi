@@ -23,6 +23,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 
+import org.apache.commons.logging.LogFactory;
+
 import com.amazon.carbonado.RepositoryException;
 import com.amazon.carbonado.Storable;
 
@@ -38,6 +40,17 @@ import com.amazon.carbonado.layout.LayoutFactory;
  */
 public class StorableTypeTransport implements Serializable {
     private static final long serialVersionUID = -2052346822135818736L;
+
+    private static final int LAYOUT_FACTORY_VERSION;
+
+    static {
+        int version = 1;
+        try {
+            version = LayoutFactory.VERSION;
+        } catch (NoSuchFieldError e) {
+        }
+        LAYOUT_FACTORY_VERSION = version;
+    }
 
     private final int mProtocolVersion;
     private final Class<? extends Storable> mType;
@@ -82,8 +95,22 @@ public class StorableTypeTransport implements Serializable {
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
         in.defaultReadObject();
         try {
-            mLayout = new LayoutFactory(MapRepositoryBuilder.newRepository()).readLayoutFrom(in);
+            LayoutFactory factory;
+            if (LAYOUT_FACTORY_VERSION == 1) {
+                // Older version of Carbonado cannot tolerate any property
+                // changes, even if irrelevant. A new repository must be used
+                // each time, which leads to excessive generated classes.
+                // Updates to Carbonado and CarbonadoDirmi are required.
+                factory = new LayoutFactory(MapRepositoryBuilder.newRepository());
+            } else {
+                factory = ReconstructedCache.THE.mLayoutFactory;
+            }
+            mLayout = factory.readLayoutFrom(in);
         } catch (RepositoryException e) {
+            // Something needs to be logged, because an IOException destroys
+            // the stream, making it more difficult to report the cause.
+            LogFactory.getLog(StorableTypeTransport.class).error
+                ("Unable to transport Storable layout information for " + mType.getName(), e);
             throw new IOException(e);
         }
     }
