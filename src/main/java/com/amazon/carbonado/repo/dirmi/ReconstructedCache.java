@@ -18,17 +18,21 @@
 
 package com.amazon.carbonado.repo.dirmi;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 
 import java.util.Map;
+import java.util.UUID;
 
 import com.amazon.carbonado.FetchException;
+import com.amazon.carbonado.Repository;
 import com.amazon.carbonado.RepositoryException;
 import com.amazon.carbonado.SupportException;
 import com.amazon.carbonado.Storable;
 
 import com.amazon.carbonado.repo.map.MapRepositoryBuilder;
+import com.amazon.carbonado.repo.sleepycat.BDBRepositoryBuilder;
 
 import com.amazon.carbonado.layout.Layout;
 import com.amazon.carbonado.layout.LayoutFactory;
@@ -56,7 +60,23 @@ class ReconstructedCache {
 
     private ReconstructedCache() {
         try {
-            mLayoutFactory = new LayoutFactory(MapRepositoryBuilder.newRepository());
+            Repository repo = null;
+            try {
+                BDBRepositoryBuilder b = new BDBRepositoryBuilder();
+                b.setName("ReconstructedCache");
+                b.setEnvironmentHomeFile(new File(System.getProperty("java.io.tmpdir"),
+                                                  "CarbonadoDirmi-" + UUID.randomUUID()));
+                b.setLogInMemory(true);
+                b.setCacheSize(1000000);
+                b.setProduct("JE");
+                b.setTransactionNoSync(true);
+
+                repo = b.build();
+            } catch (RepositoryException e) {
+                repo = MapRepositoryBuilder.newRepository();
+            }
+
+            mLayoutFactory = new LayoutFactory(repo);
         } catch (RepositoryException e) {
             // MapRepository shouldn't throw a RepositoryException.
             throw new AssertionError(e);
