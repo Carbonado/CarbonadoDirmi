@@ -66,7 +66,9 @@ class ReconstructedCache {
     }
 
     Layout layoutFor(Class<? extends Storable> type) throws RepositoryException {
-        return mLayoutFactory.layoutFor(type);
+        synchronized (mLayoutFactory) {
+            return mLayoutFactory.layoutFor(type);
+        }
     }
 
     /**

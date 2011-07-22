@@ -103,7 +103,9 @@ public class StorableTypeTransport implements Serializable {
                 // Updates to Carbonado and CarbonadoDirmi are required.
                 factory = new LayoutFactory(MapRepositoryBuilder.newRepository());
             } else {
-                factory = ReconstructedCache.THE.mLayoutFactory;
+                synchronized (ReconstructedCache.THE.mLayoutFactory) {
+                    factory = ReconstructedCache.THE.mLayoutFactory;
+                }
             }
             mLayout = factory.readLayoutFrom(in);
         } catch (RepositoryException e) {
