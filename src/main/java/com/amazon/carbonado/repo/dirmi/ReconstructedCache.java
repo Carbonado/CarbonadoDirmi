@@ -72,6 +72,8 @@ class ReconstructedCache {
                 b.setTransactionNoSync(true);
 
                 repo = b.build();
+            } catch (LinkageError e) {
+                repo = MapRepositoryBuilder.newRepository();
             } catch (RepositoryException e) {
                 repo = MapRepositoryBuilder.newRepository();
             }
