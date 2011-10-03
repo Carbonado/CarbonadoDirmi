@@ -59,7 +59,7 @@ class RemoteTransactionServer extends AbstractQueuedSynchronizer
     public void setForUpdate(boolean forUpdate) {
         Transaction txn = mTxn;
         if (txn != null) {
-            txn.setForUpdate(true);
+            txn.setForUpdate(forUpdate);
         }
     }
 
