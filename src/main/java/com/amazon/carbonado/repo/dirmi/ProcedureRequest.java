@@ -124,17 +124,17 @@ class ProcedureRequest<R, D> implements RemoteProcedure.Request<R, D>, Procedure
     public synchronized RemoteProcedure.Reply<R> beginReply()
         throws IllegalStateException, RepositoryException
     {
-        replyCheck(false, false);
+        replyCheck(false, false, false);
         return new ProcedureReply<R>(mProcedureExecutor, this, mPipe);
     }
 
     @Override
     public synchronized void finish() throws IllegalStateException, RepositoryException {
-        replyCheck(true, false);
+        replyCheck(true, false, false);
         close();
     }
 
-    private void replyCheck(boolean forFinish, boolean forSilent)
+    private void replyCheck(boolean forFinish, boolean forSilent, boolean pendingException)
         throws IllegalStateException, RepositoryException
     {
         if (mState != READY_TO_SEND) {
@@ -151,19 +151,21 @@ class ProcedureRequest<R, D> implements RemoteProcedure.Request<R, D>, Procedure
                     // Send exception to client, but all remaining data must be drained.
                     while (receive0() != null) {}
 
-                    IllegalStateException ex = new IllegalStateException
-                        ("Procedure cannot reply or finish until all data has been received");
-                    try {
-                        mPipe.writeByte(OP_THROWABLE);
-                        mPipe.writeThrowable(ex);
-                    } catch (IOException e) {
-                        // Ignore.
-                    } finally {
-                        silentClose();
-                    }
+                    if (!pendingException) {
+                        IllegalStateException ex = new IllegalStateException
+                            ("Procedure cannot reply or finish until all data has been received");
+                        try {
+                            mPipe.writeByte(OP_THROWABLE);
+                            mPipe.writeThrowable(ex);
+                        } catch (IOException e) {
+                            // Ignore.
+                        } finally {
+                            silentClose();
+                        }
 
-                    // Also throw to server, so it knows that something is broken.
-                    throw ex;
+                        // Also throw to server, so it knows that something is broken.
+                        throw ex;
+                    }
                 }
             }
             if (mState == SENDING) {
@@ -197,7 +199,7 @@ class ProcedureRequest<R, D> implements RemoteProcedure.Request<R, D>, Procedure
 
     synchronized void silentFinish() throws IllegalStateException {
         try {
-            replyCheck(true, true);
+            replyCheck(true, true, false);
             close();
         } catch (RepositoryException e) {
             // Ignore.
@@ -209,7 +211,7 @@ class ProcedureRequest<R, D> implements RemoteProcedure.Request<R, D>, Procedure
      */
     synchronized void silentFinish(Throwable cause) throws IllegalStateException, Throwable {
         try {
-            replyCheck(true, true);
+            replyCheck(true, true, true);
         } catch (RepositoryException e) {
             // Ignore.
         }

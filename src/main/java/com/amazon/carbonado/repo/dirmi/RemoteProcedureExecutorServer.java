@@ -22,6 +22,7 @@ import java.io.IOException;
 
 import org.cojen.dirmi.Pipe;
 
+import com.amazon.carbonado.FetchException;
 import com.amazon.carbonado.RepositoryException;
 import com.amazon.carbonado.Storable;
 
@@ -69,6 +70,11 @@ class RemoteProcedureExecutorServer implements RemoteProcedureExecutor, Procedur
                 if (proc.handleRequest(mRepositoryServer.mRepository, request)) {
                     request.silentFinish();
                 }
+            } catch (LinkageError e) {
+                request.silentFinish
+                    (new FetchException("Remote procedure class is malformed or " +
+                                        "is missing from server: " + proc.getClass().getName() +
+                                        ", caused by: " + e));
             } catch (Throwable e) {
                 request.silentFinish(e);
             }
