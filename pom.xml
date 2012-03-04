@@ -5,7 +5,7 @@
   <artifactId>carbonado-dirmi</artifactId>
   <packaging>jar</packaging>
   <name>CarbonadoDirmi</name>
-  <version>1.2.2</version>
+  <version>1.2.3</version>
   <description>
     Support for remote access to any Carbonado repository.
   </description>
@@ -65,7 +65,7 @@
     <dependency>
       <groupId>com.amazon.carbonado</groupId>
       <artifactId>carbonado</artifactId>
-      <version>1.2.2</version>
+      <version>1.2.3</version>
     </dependency>
     <dependency>
       <groupId>org.cojen</groupId>
