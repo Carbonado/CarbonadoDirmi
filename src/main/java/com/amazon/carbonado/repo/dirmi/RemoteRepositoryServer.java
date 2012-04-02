@@ -39,9 +39,11 @@ import com.amazon.carbonado.Storage;
 import com.amazon.carbonado.SupportException;
 import com.amazon.carbonado.Transaction;
 
+import com.amazon.carbonado.capability.IndexInfoCapability;
 import com.amazon.carbonado.capability.ResyncCapability;
 import com.amazon.carbonado.layout.Layout;
 
+import com.amazon.carbonado.repo.indexed.IndexEntryAccessCapability;
 import com.amazon.carbonado.sequence.SequenceCapability;
 import com.amazon.carbonado.sequence.SequenceValueProducer;
 
@@ -206,6 +208,18 @@ public class RemoteRepositoryServer implements RemoteRepository {
                 .from(RemoteResyncCapability.class, ResyncCapability.class)
                 .wrap(rc);
         }
+        return null;
+    }
+
+    @Override
+    public RemoteIndexEntryAccessCapability getIndexEntryAccessCapability()
+            throws RemoteException {
+        final IndexEntryAccessCapability accessCap = mRepository.getCapability(IndexEntryAccessCapability.class);
+        
+        if (accessCap != null) {
+            return new RemoteIndexEntryAccessCapabilityServer(accessCap);
+        }
+        
         return null;
     }
 }

@@ -43,6 +43,7 @@ import com.amazon.carbonado.capability.ResyncCapability;
 
 import com.amazon.carbonado.layout.Layout;
 
+import com.amazon.carbonado.repo.indexed.IndexEntryAccessCapability;
 import com.amazon.carbonado.sequence.SequenceValueProducer;
 
 import com.amazon.carbonado.spi.AbstractRepository;
@@ -204,6 +205,19 @@ public class ClientRepository extends AbstractRepository<RemoteTransaction>
             } catch (RemoteException e) {
                 return null;
             }
+
+        } else if (IndexEntryAccessCapability.class.equals(capabilityType)) {
+            try {
+                final RemoteIndexEntryAccessCapability rieac = mRepository.getIndexEntryAccessCapability();
+                if (rieac != null) {
+                    return (C) new ClientIndexEntryAccessCapability(rieac);
+                } else {
+                    return null;
+                }
+            } catch (RemoteException e) {
+                return null;
+            }
+
         } else {
             return super.getCapability(capabilityType);
         }

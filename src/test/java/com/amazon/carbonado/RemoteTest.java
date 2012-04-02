@@ -18,37 +18,36 @@
 
 package com.amazon.carbonado;
 
-import junit.framework.TestCase;
-import junit.framework.TestSuite;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
-import java.util.List;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
-
-import static org.junit.Assert.*;
-
-import org.junit.*;
-
-import com.amazon.carbonado.repo.dirmi.*;
 
 import org.cojen.dirmi.Environment;
 import org.cojen.dirmi.Session;
-
-import com.amazon.carbonado.*;
+import org.junit.Test;
 
 import com.amazon.carbonado.capability.RemoteProcedure;
 import com.amazon.carbonado.capability.RemoteProcedureCapability;
 import com.amazon.carbonado.capability.ResyncCapability;
-
+import com.amazon.carbonado.repo.dirmi.ClientRepository;
+import com.amazon.carbonado.repo.dirmi.RemoteRepository;
+import com.amazon.carbonado.repo.dirmi.RemoteRepositoryServer;
+import com.amazon.carbonado.repo.indexed.IndexEntryAccessCapability;
+import com.amazon.carbonado.repo.indexed.IndexEntryAccessor;
 import com.amazon.carbonado.repo.map.MapRepositoryBuilder;
 import com.amazon.carbonado.repo.replicated.ReplicatedRepositoryBuilder;
-
 import com.amazon.carbonado.sequence.SequenceCapability;
 import com.amazon.carbonado.sequence.SequenceValueProducer;
-
-import com.amazon.carbonado.synthetic.SyntheticStorableBuilder;
-
+import com.amazon.carbonado.stored.IndexedStorable;
 import com.amazon.carbonado.stored.StorableTestVersioned;
+import com.amazon.carbonado.synthetic.SyntheticStorableBuilder;
 
 /**
  * 
@@ -1461,6 +1460,62 @@ public class RemoteTest {
 
         ResyncCapability rc = (ResyncCapability)clientRepo.getCapability(ResyncCapability.class);
         assertNull(rc);
+    }
+    
+    /**
+     * Tests remote access to the IndexEntryAccessCapability as follows:
+     *  - Create a repository and establish remote access
+     *  - Populate repository with indexed data
+     *  - Attempt to get IndexEntryAccessCapability of remote repository
+     *  - Attempt to check index property name
+     *  - Destroy the indices and repair them remotely
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void remoteIndexEntryAccessCapability() throws Exception {
+        // Create repository and establish remote access
+        Repository clientRepo, localRepo;
+        {
+            MapRepositoryBuilder builder = new MapRepositoryBuilder();
+            localRepo = builder.build();
+            
+            Session[] pair = new Environment().newSessionPair();
+            pair[0].send(RemoteRepositoryServer.from(localRepo));
+            RemoteRepository remoteRepo = (RemoteRepository) pair[1].receive();
+            clientRepo = ClientRepository.from(remoteRepo);
+        }
+
+        // Populate repository with indexed data
+        Storage<IndexedStorable> storage = localRepo.storageFor(IndexedStorable.class);
+        IndexedStorable stb;
+        
+        stb = storage.prepare();
+        stb.populate(1);
+        stb.insert();
+        
+        // Attempt to get IndexEntryAccessCapability of remote repository
+        IndexEntryAccessCapability cap = clientRepo.getCapability(IndexEntryAccessCapability.class);
+        assertNotNull("Get IndexEntryAccessCapability", cap);
+        
+        // Attempt to iterate index names
+        IndexEntryAccessor<IndexedStorable>[] ieas = cap.getIndexEntryAccessors(IndexedStorable.class);
+        assertNotNull("Get IndexEntryAccessor[]", ieas);
+        
+        assertEquals("Number of indices", 1, ieas.length);
+        
+        String[] indexNames = ieas[0].getPropertyNames();
+        assertEquals("intProp Index", "intProp", indexNames[0]);
+        
+        // Destroy the indices and repair them remotely.
+        IndexEntryAccessCapability localCap = localRepo.getCapability(IndexEntryAccessCapability.class);
+        Storage indexStorage = localCap.getIndexEntryAccessors(IndexedStorable.class)[0].getIndexEntryStorage();
+        indexStorage.query().deleteAll();
+        assertEquals("Indices not destroyed", 0, indexStorage.query().count());
+        
+        ieas[0].repair(1);
+        
+        assertEquals("Indices not repaired", 1, indexStorage.query().count());
     }
 
     private static Class<? extends Storable> generateNewType() throws SupportException {

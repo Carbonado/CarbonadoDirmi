@@ -86,6 +86,8 @@ public interface RemoteRepository extends Remote {
     
     RemoteResyncCapability getResyncCapability() throws RemoteException;
 
+    RemoteIndexEntryAccessCapability getIndexEntryAccessCapability() throws RemoteException;
+    
     /**
      * Client repository should call this once and re-use the returned instance.
      */
