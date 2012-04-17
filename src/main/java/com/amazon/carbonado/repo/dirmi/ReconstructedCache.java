@@ -60,12 +60,14 @@ class ReconstructedCache {
 
     private ReconstructedCache() {
         try {
+            final File tmpDir = new File(System.getProperty("java.io.tmpdir"),
+                                         "CarbonadoDirmi-" + UUID.randomUUID());
+
             Repository repo = null;
             try {
                 BDBRepositoryBuilder b = new BDBRepositoryBuilder();
                 b.setName("ReconstructedCache");
-                b.setEnvironmentHomeFile(new File(System.getProperty("java.io.tmpdir"),
-                                                  "CarbonadoDirmi-" + UUID.randomUUID()));
+                b.setEnvironmentHomeFile(tmpDir);
                 b.setLogInMemory(true);
                 b.setCacheSize(1000000);
                 b.setProduct("JE");
@@ -78,6 +80,20 @@ class ReconstructedCache {
                 repo = MapRepositoryBuilder.newRepository();
             }
 
+            if (tmpDir.exists()) {
+                final Repository fRepo = repo;
+
+                Runtime.getRuntime().addShutdownHook(new Thread() {
+                    public void run() {
+                        try {
+                            fRepo.close();
+                        } finally {
+                            deleteTempDir(tmpDir);
+                        }
+                    }
+                });
+            }
+
             mLayoutFactory = new LayoutFactory(repo);
         } catch (RepositoryException e) {
             // MapRepository shouldn't throw a RepositoryException.
@@ -85,6 +101,25 @@ class ReconstructedCache {
         }
 
         mCache = SoftValuedCache.newCache(3);
+    }
+
+    static void deleteTempDir(File file) {
+        if (file.isDirectory()) {
+            for (File f : file.listFiles()) {
+                deleteTempDir(f);
+            }
+        }
+        // Need to retry a few times, because repository might be concurrently shutting down.
+        for (int i=0; i<50; i++) {
+            if (!file.exists() || file.delete()) {
+                break;
+            }
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                break;
+            }
+        }
     }
 
     Layout layoutFor(Class<? extends Storable> type) throws RepositoryException {
