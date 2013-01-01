@@ -22,6 +22,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import java.lang.reflect.Method;
+
 import java.util.Map;
 import java.util.UUID;
 
@@ -60,27 +62,41 @@ class ReconstructedCache {
 
     private ReconstructedCache() {
         try {
-            final File tmpDir = new File(System.getProperty("java.io.tmpdir"),
-                                         "CarbonadoDirmi-" + UUID.randomUUID());
+            // Favor in-memory Tupl repository, but fallback to BDB-JE, and
+            // then to the Map repository. Map repository has locking defects,
+            // which is why it is the least preferred. BDB-JE isn't suitable
+            // for long-term in-memory storage, because it never cleans out old
+            // log entries. Tupl is the better choice overall because it
+            // implements locks correctly and doesn't leak memory.
 
-            Repository repo = null;
+            Repository repo;
+            File tmpDir = null;
+
             try {
-                BDBRepositoryBuilder b = new BDBRepositoryBuilder();
-                b.setName("ReconstructedCache");
-                b.setEnvironmentHomeFile(tmpDir);
-                b.setLogInMemory(true);
-                b.setCacheSize(1000000);
-                b.setProduct("JE");
-                b.setTransactionNoSync(true);
+                repo = (Repository) Class.forName
+                    ("com.amazon.carbonado.repo.tupl.TuplRepositoryBuilder")
+                    .getMethod("newRepository").invoke(null);
+            } catch (Throwable e) {
+                tmpDir = new File(System.getProperty("java.io.tmpdir"),
+                                  "CarbonadoDirmi-" + UUID.randomUUID());
 
-                repo = b.build();
-            } catch (LinkageError e) {
-                repo = MapRepositoryBuilder.newRepository();
-            } catch (RepositoryException e) {
-                repo = MapRepositoryBuilder.newRepository();
+                try {
+                    BDBRepositoryBuilder b = new BDBRepositoryBuilder();
+                    b.setName("ReconstructedCache");
+                    b.setEnvironmentHomeFile(tmpDir);
+                    b.setLogInMemory(true);
+                    b.setCacheSize(1000000);
+                    b.setProduct("JE");
+                    b.setTransactionNoSync(true);
+
+                    repo = b.build();
+                } catch (Throwable e2) {
+                    repo = MapRepositoryBuilder.newRepository();
+                }
             }
 
-            if (tmpDir.exists()) {
+            if (tmpDir != null && tmpDir.exists()) {
+                final File fTmpDir = tmpDir;
                 final Repository fRepo = repo;
 
                 Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -88,7 +104,7 @@ class ReconstructedCache {
                         try {
                             fRepo.close();
                         } finally {
-                            deleteTempDir(tmpDir);
+                            deleteTempDir(fTmpDir);
                         }
                     }
                 });
