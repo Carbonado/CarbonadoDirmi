@@ -9,12 +9,12 @@
   <description>
     Support for remote access to any Carbonado repository.
   </description>
-  <url>http://carbonado.sourceforge.net/</url>
+  <url>https://github.com/Carbonado/CarbonadoDirmi/</url>
   <inceptionYear>2006</inceptionYear>
 
   <organization>
     <name>Amazon Technologies, Inc.</name>
-    <url>http://sourceforge.net/projects/carbonado/</url>
+    <url>https://github.com/Carbonado/CarbonadoDirmi/</url>
   </organization>
 
   <licenses>
@@ -25,13 +25,12 @@
   </licenses>
 
   <scm>
-    <connection>scm:svn:https://svn.sourceforge.net/svnroot/carbonado/trunk/CarbonadoDirmi</connection>
-    <developerConnection>scm:svn:https://svn.sourceforge.net/svnroot/carbonado/trunk/CarbonadoDirmi</developerConnection>
-    <url>http://svn.sourceforge.net/viewvc/carbonado/trunk/CarbonadoDirmi/</url>
+    <connection>scm:git:https://github.com/Carbonado/CarbonadoDirmi.git</connection>
+    <url>https://github.com/Carbonado/CarbonadoDirmi/</url>
   </scm>
 
   <issueManagement>
-    <url>http://sourceforge.net/tracker/?group_id=171277</url>
+    <url>https://github.com/Carbonado/CarbonadoDirmi/issues</url>
   </issueManagement>
 
   <mailingLists>
@@ -48,18 +47,23 @@
       <id>broneill</id>
       <email>broneill@users.sourceforge.net</email>
       <organization>Amazon Technologies, Inc.</organization>
-      <roles>
-        <role>Project Lead</role>
-      </roles>
     </developer>
 
     <developer>
-      <name>Olga Kuznetsova</name>
-      <id>okuznetsova</id>
-      <email>okuznetsova@users.sourceforge.net</email>
+      <name>Jesse Morgan</name>
+      <id>jesterpm</id>
+      <email>morganjm@amazon.com</email>
       <organization>Amazon Technologies, Inc.</organization>
     </developer>
   </developers>
+
+  <contributors>
+    <contributor>
+      <name>Olga Kuznetsova</name>
+      <email>okuznetsova@users.sourceforge.net</email>
+      <organization>Amazon Technologies, Inc.</organization>
+    </contributor>
+  </contributors>
 
   <dependencies>
     <dependency>
@@ -130,11 +134,11 @@
           <reportSet>
             <reports>
               <report>project-team</report>
-	      <report>mailing-list</report>
+              <report>mailing-list</report>
               <report>issue-tracking</report>
               <report>scm</report>
               <report>license</report>
-	    </reports>
+            </reports>
           </reportSet>
         </reportSets>
       </plugin>
